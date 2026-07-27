@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Practice Test</title>
+    <link rel="icon" type="svg+xml" href="logo.svg">
+
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="fetchQuestion.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #f3f4f6; color: #1f2937; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; transition: background-color 0.3s, color 0.3s; }
+    .quiz-card { background: #ffffff; width: 100%; max-width: 640px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 32px; position: relative; transition: background 0.3s, box-shadow 0.3s; }
+
+    /* Theme Toggle Button */
+    .theme-toggle-btn {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      background: transparent;
+      border: 2px solid #e5e7eb;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.1rem;
+      transition: all 0.2s;
+    }
+    .theme-toggle-btn:hover { background-color: rgba(0,0,0,0.05); }
+
+    /* Header & Timer */
+    .quiz-header { margin-bottom: 24px; }
+    .progress-info { display: flex; justify-content: space-between; font-size: 0.875rem; color: #6b7280; font-weight: 600; margin-bottom: 8px; }
+    .timer-text { font-size: 1.1rem; color: #dc2626; font-weight: bold; background: #fee2e2; padding: 4px 10px; border-radius: 6px; }
+    .progress-bar { width: 100%; height: 8px; background-color: #e5e7eb; border-radius: 999px; overflow: hidden; margin-top: 10px;}
+    .progress-fill { width: 0%; height: 100%; background-color: #4f46e5; transition: width 0.3s ease; }
+
+    /* Question, Images & Options */
+    .question-title { font-size: 1.25rem; font-weight: 600; line-height: 1.5; margin-bottom: 16px; }
+    .question-image { max-width: 100%; border-radius: 8px; margin-bottom: 24px; display: none; }
+    .options-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+    .option { display: flex; align-items: center; padding: 16px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s; background: #fff; }
+    .option input[type="radio"] { margin-right: 14px; width: 20px; height: 20px; accent-color: #4f46e5; cursor: pointer; }
+    .option:hover { border-color: #a5b4fc; }
+    .option-text { font-weight: 500; }
+
+    /* Buttons */
+    .quiz-footer { display: flex; justify-content: space-between; padding-top: 20px; border-top: 1px solid #f3f4f6; }
+    .btn { padding: 10px 20px; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; }
+    .btn-secondary { background: #f3f4f6; color: #4b5563; }
+    .btn-primary { background: #4f46e5; color: #fff; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* --- REVIEW MODE STYLES --- */
+    #review-view { display: none; }
+    .review-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(45px, 1fr)); gap: 10px; margin-bottom: 20px; }
+    .grid-btn { width: 45px; height: 45px; display: flex; justify-content: center; align-items: center; border-radius: 6px; font-weight: bold; color: white; cursor: pointer; border: none; }
+    
+    /* Colors for Review states */
+    .bg-correct { background-color: #10b981 !important; color: white !important; border-color: #10b981 !important; }
+    .bg-incorrect { background-color: #ef4444 !important; color: white !important; border-color: #ef4444 !important; }
+    .bg-unanswered { background-color: #9ca3af !important; color: white !important; }
+    
+    /* Option highlights in Review Mode */
+    .option.correct-ans { border-color: #10b981; background-color: #d1fae5; }
+    .option.wrong-ans { border-color: #ef4444; background-color: #fee2e2; }
+    
+    /* Explanation Box */
+    .explanation-box { background: #f8fafc; border-left: 4px solid #3b82f6; padding: 16px; margin-top: 20px; border-radius: 0 8px 8px 0; }
+    .explanation-title { font-weight: 600; color: #1e3a8a; margin-bottom: 8px; }
+    .explanation-image { max-width: 100%; border-radius: 8px; margin-top: 16px; display: none; }
+
+    /* --- DARK THEME STYLES --- */
+    body.dark-mode { background-color: #111827; color: #f9fafb; }
+    body.dark-mode .quiz-card { background: #1f2937; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    body.dark-mode .theme-toggle-btn { border-color: #374151; color: #f9fafb; }
+    body.dark-mode .theme-toggle-btn:hover { background-color: rgba(255,255,255,0.05); }
+    body.dark-mode .progress-info { color: #9ca3af; }
+    body.dark-mode .timer-text { background: #7f1d1d; color: #fca5a5; }
+    body.dark-mode .progress-bar { background-color: #374151; }
+    body.dark-mode .option { background: #1f2937; border-color: #374151; color: #f9fafb; }
+    body.dark-mode .option:hover { border-color: #6366f1; }
+    body.dark-mode .btn-secondary { background: #374151; color: #d1d5db; }
+    body.dark-mode .quiz-footer { border-top-color: #374151; }
+    body.dark-mode #review-detail-area { border-top-color: #374151; }
+    body.dark-mode .explanation-box { background: #111827; border-left-color: #60a5fa; color: #e5e7eb; }
+    body.dark-mode .explanation-title { color: #93c5fd; }
+    body.dark-mode .option.correct-ans { background-color: #064e3b; border-color: #10b981; color: #d1fae5; }
+    body.dark-mode .option.wrong-ans { background-color: #7f1d1d; border-color: #ef4444; color: #fee2e2; }
+  </style>
+</head>
+<body>
+<button type="button" class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle Dark/Light Mode">🌙</button>
+  <div class="quiz-card">
+    
+    
+    <!-- QUIZ VIEW (Taking the test) -->
+    <div id="quiz-view">
+      <div class="quiz-header">
+        <div class="progress-info">
+          <span id="progress-text">Question -- of --</span>
+          <span class="timer-text" id="timer-text">01:55:00</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      </div>
+
+      <h2 class="question-title" id="question-text">Loading test...</h2>
+      <!-- Image for the question (Hidden by default) -->
+      <img id="question-image" class="question-image" src="" alt="Question Image">
+
+      <div class="options-list" id="options-container">
+        <!-- Options are injected here by JS -->
+      </div>
+
+      <div class="quiz-footer">
+        <button type="button" class="btn btn-secondary" id="prev-btn">Previous</button>
+        <button type="button" class="btn btn-primary" id="next-btn">Next Question</button>
+      </div>
+    </div>
+
+    <!-- REVIEW VIEW (After finishing) -->
+    <div id="review-view">
+      <div class="quiz-header">
+        <h2 class="question-title">Test Results</h2>
+        <p id="score-text" style="font-size: 1.1rem; font-weight: bold; margin-bottom: 16px;"></p>
+        <p style="margin-bottom: 12px; color: #4b5563;">Click a number below to review the question and explanation:</p>
+        
+        <div class="review-grid" id="review-grid">
+          <!-- Grid numbers injected here -->
+        </div>
+
+        <!-- End Review & Back to Main Page Button -->
+        <div style="margin-top: 20px;">
+          <button type="button" class="btn btn-primary" onclick="window.location.href='mainpage.html'" style="background-color: #10b981; width: 100%;">End Review & Back to Dashboard</button>
+        </div>
+      </div>
+
+      <!-- Specific Question Review Area (Hidden until a grid item is clicked) -->
+      <div id="review-detail-area" style="display: none; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+        <h3 style="margin-bottom: 10px; color: #6b7280;" id="review-q-num">Question X</h3>
+        
+        <h2 class="question-title" id="review-question-text"></h2>
+        <!-- Image for the question in review (Hidden by default) -->
+        <img id="review-question-image" class="question-image" src="" alt="Question Image">
+        
+        <div class="options-list" id="review-options-container">
+           <!-- Reviewed options injected here -->
+        </div>
+
+        <div class="explanation-box" id="explanation-box">
+          <div class="explanation-title">Explanation:</div>
+          <div id="explanation-text"></div>
+          <!-- Image for the explanation (Hidden by default) -->
+          <img id="explanation-image" class="explanation-image" src="" alt="Explanation Image">
+        </div>
+        
+        <button type="button" class="btn btn-secondary" style="width: 100%; margin-top: 15px;" id="back-to-grid-btn">Scroll to Grid</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    const currentTheme = localStorage.getItem('theme');
+    if (currentTheme === 'dark') {
+      document.body.classList.add('dark-mode');
+      themeToggleBtn.textContent = '☀️';
+    } else {
+      themeToggleBtn.textContent = '🌙';
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
+      let theme = 'light';
+      if (document.body.classList.contains('dark-mode')) {
+        theme = 'dark';
+        themeToggleBtn.textContent = '☀️';
+      } else {
+        themeToggleBtn.textContent = '🌙';
+      }
+      localStorage.setItem('theme', theme);
+    });
+  </script>
+</body>
+</html>
