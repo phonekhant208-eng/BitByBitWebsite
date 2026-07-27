@@ -569,5 +569,19 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="mainpageFunction.js"></script>
 
+  <!-- Authentication Guard Script -->
+  <script>
+    async function checkAuth() {
+        if (typeof supabase === 'undefined') return;
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (!session || error) {
+            window.location.href = '/register.html';
+        }
+    }
+
+    checkAuth();
+  </script>
+
 </body>
 </html>
