@@ -5,12 +5,14 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 const TEST_LIMIT = 40;
 const MARKS_PER_QUESTION = 5; 
 const TIME_LIMIT_SECONDS = 115 * 60; // 1 hour 55 minutes
+const STORAGE_KEY = 'ged_active_test_session';
 
 let questions = [];
 let userAnswers = []; 
 let questionStatuses = []; // Will hold "correct", "incorrect", or "unanswered"
 let currentIndex = 0;
 let timeLeft = TIME_LIMIT_SECONDS;
+let targetEndTime = 0;
 let timerInterval;
 
 // DOM Elements
@@ -18,10 +20,33 @@ const quizView = document.getElementById('quiz-view');
 const reviewView = document.getElementById('review-view');
 const optionsContainer = document.getElementById('options-container');
 
+// ==========================================
+// SESSION PERSISTENCE HELPERS
+// ==========================================
+function saveTestSession() {
+  const sessionData = {
+    isCompleted: false,
+    questions,
+    userAnswers,
+    currentIndex,
+    targetEndTime
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
+}
+
+function clearTestSession() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 // Timer display
-function startTimer() {
+function startTimer(endTime) {
+  targetEndTime = endTime;
+  if (timerInterval) clearInterval(timerInterval);
+
   timerInterval = setInterval(() => {
-    timeLeft--;
+    const now = Date.now();
+    timeLeft = Math.max(0, Math.floor((targetEndTime - now) / 1000));
+
     const h = Math.floor(timeLeft / 3600);
     const m = Math.floor((timeLeft % 3600) / 60);
     const s = timeLeft % 60;
@@ -36,7 +61,40 @@ function startTimer() {
   }, 1000);
 }
 
-// Helpers
+// ==========================================
+// HELPERS & DECODER
+// ==========================================
+function decodeEntities(str) {
+  if (!str) return '';
+  const txt = document.createElement('textarea');
+  txt.innerHTML = str;
+  return txt.value;
+}
+
+function showCustomConfirm(missingQuestions) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('custom-modal');
+    const listEl = document.getElementById('modal-missing-list');
+    const countEl = document.getElementById('modal-missing-count');
+    const confirmBtn = document.getElementById('modal-confirm-btn');
+    const cancelBtn = document.getElementById('modal-cancel-btn');
+    
+    countEl.textContent = missingQuestions.length;
+    listEl.textContent = missingQuestions.join(', ');
+    
+    modal.style.display = 'flex';
+    
+    const cleanup = () => {
+      modal.style.display = 'none';
+      confirmBtn.onclick = null;
+      cancelBtn.onclick = null;
+    };
+    
+    confirmBtn.onclick = () => { cleanup(); resolve(true); };
+    cancelBtn.onclick = () => { cleanup(); resolve(false); };
+  });
+}
+
 function shuffleArray(array) {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -65,15 +123,57 @@ function checkIsCorrect(userAns, correctVal) {
   );
 }
 
-// 1. Init Quiz (With Category Ratios & No Repeats)
+// 1. Init Quiz (With Resume Logic, Category Ratios & No Repeats)
 async function initQuiz() {
   const { data: { user } } = await supabaseClient.auth.getUser();
   if (!user) {
     document.getElementById('question-text').textContent = 'Please log in.';
+    window.location.href = '/register.html';
     return;
   }
 
-  // Fetch already answered question IDs for this user
+  // A. Check for active session in localStorage
+  const savedSession = localStorage.getItem(STORAGE_KEY);
+  if (savedSession) {
+    try {
+      const parsed = JSON.parse(savedSession);
+
+      // If user refreshed while viewing completed test results
+      if (parsed.isCompleted) {
+        questions = parsed.questions || [];
+        userAnswers = parsed.userAnswers || [];
+        questionStatuses = parsed.questionStatuses || [];
+
+        const correctCount = questionStatuses.filter(s => s === 'correct').length;
+        document.getElementById('score-text').textContent = `Score: ${parsed.totalScore} / 200 (${correctCount} out of ${questions.length} correct)`;
+
+        quizView.style.display = 'none';
+        reviewView.style.display = 'block';
+        renderReviewGrid();
+        return;
+      }
+
+      const remainingMs = parsed.targetEndTime - Date.now();
+
+      // If time hasn't run out and questions exist, restore session
+      if (remainingMs > 0 && parsed.questions && parsed.questions.length > 0) {
+        questions = parsed.questions;
+        userAnswers = parsed.userAnswers || new Array(questions.length).fill(null);
+        currentIndex = parsed.currentIndex || 0;
+
+        startTimer(parsed.targetEndTime);
+        renderCurrentQuestion();
+        return; // Successfully restored active session
+      } else {
+        clearTestSession(); // Expired session
+      }
+    } catch (e) {
+      console.error("Failed to restore session:", e);
+      clearTestSession();
+    }
+  }
+
+  // B. Generate New Test if no valid saved session
   const { data: progressData } = await supabaseClient
     .from('user_progress')
     .select('question_id')
@@ -81,7 +181,6 @@ async function initQuiz() {
 
   const seenIds = progressData ? progressData.map(row => row.question_id) : [];
 
-  // Fetch fresh questions excluding seen IDs
   let query = supabaseClient.from('questions').select('*');
   if (seenIds.length > 0) {
     query = query.not('id', 'in', `(${seenIds.join(',')})`);
@@ -94,7 +193,6 @@ async function initQuiz() {
     return;
   }
 
-  // Group available questions by category
   const categorized = {
     'equations': [],
     'graphs': [],
@@ -112,17 +210,15 @@ async function initQuiz() {
     }
   });
 
-  // Shuffle inside categories
   for (let key in categorized) {
     categorized[key] = shuffleArray(categorized[key]);
   }
 
-  // Target quotas for 40 questions
   const targets = {
-    'equations': 12, // 30%
-    'graphs': 4,    // 10%
-    'basic': 12,    // 30%
-    'geometry': 12    // 30%
+    'equations': 12,
+    'graphs': 4,
+    'basic': 12,
+    'geometry': 12
   };
 
   let finalSelection = [];
@@ -133,7 +229,6 @@ async function initQuiz() {
     finalSelection.push(...selectedForCat);
   }
 
-  // Fallback: Fill remaining slots from any category if short
   if (finalSelection.length < TEST_LIMIT) {
     let leftoverQuestions = [];
     for (let key in categorized) {
@@ -144,21 +239,21 @@ async function initQuiz() {
     finalSelection.push(...leftoverQuestions.slice(0, missingCount));
   }
 
-  // Final scramble so categories mix together
   questions = shuffleArray(finalSelection);
   userAnswers = new Array(questions.length).fill(null);
-  
   currentIndex = 0;
-  startTimer();
+  
+  const endTime = Date.now() + (TIME_LIMIT_SECONDS * 1000);
+  startTimer(endTime);
+  saveTestSession();
   renderCurrentQuestion();
 }
 
 // 2. Render Quiz Question
 function renderCurrentQuestion() {
   const current = questions[currentIndex];
-  document.getElementById('question-text').textContent = current.question;
+  document.getElementById('question-text').textContent = decodeEntities(current.question);
   
-  // Handle Question Image
   const qImg = document.getElementById('question-image');
   if (current.image_url && current.image_url.trim() !== '') {
     qImg.src = current.image_url;
@@ -171,18 +266,18 @@ function renderCurrentQuestion() {
   const optionsList = getOptionsArray(current.options);
   const letters = ['A', 'B', 'C', 'D'];
   
-  // Rebuild options dynamically
   optionsContainer.innerHTML = '';
   letters.forEach((letter, idx) => {
     if (!optionsList[idx]) return;
     
+    const decodedOptionText = decodeEntities(optionsList[idx]);
     const isChecked = userAnswers[currentIndex] && userAnswers[currentIndex].letter === letter;
     
     const optionDiv = document.createElement('div');
     optionDiv.className = 'option';
     optionDiv.innerHTML = `
       <input type="radio" name="quiz-option" value="${letter}" ${isChecked ? 'checked' : ''} style="pointer-events: none;">
-      <span class="option-text">${optionsList[idx]}</span>
+      <span class="option-text">${decodedOptionText}</span>
     `;
 
     optionDiv.addEventListener('click', () => {
@@ -195,14 +290,15 @@ function renderCurrentQuestion() {
       } else {
         document.querySelectorAll('input[name="quiz-option"]').forEach(r => r.checked = false);
         input.checked = true;
-        userAnswers[currentIndex] = { letter: letter, index: idx, text: optionsList[idx] };
+        userAnswers[currentIndex] = { letter: letter, index: idx, text: decodedOptionText };
       }
+      
+      saveTestSession();
     });
 
     optionsContainer.appendChild(optionDiv);
   });
 
-  // Progress UI
   const total = questions.length;
   const currentNum = currentIndex + 1;
   const percentage = Math.round((currentNum / total) * 100);
@@ -213,9 +309,10 @@ function renderCurrentQuestion() {
   const prevBtn = document.getElementById('prev-btn');
   const nextBtn = document.getElementById('next-btn');
   prevBtn.disabled = currentIndex === 0;
+  
+  // FIX: Shows "Finish Test" ONLY on the last question
   nextBtn.textContent = currentIndex === total - 1 ? 'Finish Test' : 'Next Question';
 
-  // Trigger MathJax rendering for dynamically injected question and options
   if (window.MathJax) {
     MathJax.typeset();
   }
@@ -245,15 +342,17 @@ async function submitTest(forceSubmit = false) {
   if (!forceSubmit) {
     const missing = userAnswers.map((ans, idx) => ans ? null : idx + 1).filter(v => v !== null);
     if (missing.length > 0) {
-      if(!confirm(`⚠️ You have ${missing.length} unanswered question(s)!\nUnanswered: ${missing.join(', ')}\n\nAre you sure you want to submit?`)) {
+      const userConfirmed = await showCustomConfirm(missing);
+      if (!userConfirmed) {
         currentIndex = missing[0] - 1;
+        saveTestSession();
         renderCurrentQuestion();
         return;
       }
     }
   }
 
-  clearInterval(timerInterval); // Stop clock
+  clearInterval(timerInterval);
   
   let correctCount = 0;
   questionStatuses = [];
@@ -270,13 +369,22 @@ async function submitTest(forceSubmit = false) {
     }
   });
 
-  // Save progress to  table
   await saveTestProgress();
 
   const totalScore = correctCount * MARKS_PER_QUESTION;
+  
+  // FIX: Save completed session so refresh stays on review screen
+  const completedSession = {
+    isCompleted: true,
+    questions,
+    userAnswers,
+    questionStatuses,
+    totalScore
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(completedSession));
+
   document.getElementById('score-text').textContent = `Score: ${totalScore} / 200 (${correctCount} out of ${questions.length} correct)`;
 
-  // Switch Views
   quizView.style.display = 'none';
   reviewView.style.display = 'block';
   
@@ -310,9 +418,8 @@ function renderReviewQuestion(index) {
   const userAns = userAnswers[index];
   
   document.getElementById('review-q-num').textContent = `Reviewing Question ${index + 1}`;
-  document.getElementById('review-question-text').textContent = q.question;
+  document.getElementById('review-question-text').textContent = decodeEntities(q.question);
 
-  // Handle Review Question Image
   const revQImg = document.getElementById('review-question-image');
   if (q.image_url && q.image_url.trim() !== '') {
     revQImg.src = q.image_url;
@@ -331,34 +438,33 @@ function renderReviewQuestion(index) {
   letters.forEach((letter, idx) => {
     if (!optionsList[idx]) return;
 
+    const decodedOptionText = decodeEntities(optionsList[idx]);
     const div = document.createElement('div');
     div.className = 'option';
     
-    const isThisOptionCorrect = checkIsCorrect({text: optionsList[idx], letter: letter, index: idx}, q.correct_answer);
+    const isThisOptionCorrect = checkIsCorrect({text: decodedOptionText, letter: letter, index: idx}, q.correct_answer);
     const didUserPickThis = userAns && userAns.letter === letter;
 
     if (isThisOptionCorrect) {
       div.classList.add('correct-ans');
-      div.innerHTML = `✅ <strong>${letter}:</strong> &nbsp; ${optionsList[idx]} <span style="margin-left:auto; color:#10b981; font-weight:bold;">(Correct Answer)</span>`;
+      div.innerHTML = `✅ <strong>${letter}:</strong> &nbsp; ${decodedOptionText} <span style="margin-left:auto; color:#10b981; font-weight:bold;">(Correct Answer)</span>`;
     } else if (didUserPickThis) {
       div.classList.add('wrong-ans');
-      div.innerHTML = `❌ <strong>${letter}:</strong> &nbsp; ${optionsList[idx]} <span style="margin-left:auto; color:#ef4444; font-weight:bold;">(Your Answer)</span>`;
+      div.innerHTML = `❌ <strong>${letter}:</strong> &nbsp; ${decodedOptionText} <span style="margin-left:auto; color:#ef4444; font-weight:bold;">(Your Answer)</span>`;
     } else {
-      div.innerHTML = `<strong>${letter}:</strong> &nbsp; ${optionsList[idx]}`;
+      div.innerHTML = `<strong>${letter}:</strong> &nbsp; ${decodedOptionText}`;
     }
 
     container.appendChild(div);
   });
 
-  // Display Explanation
   const expBox = document.getElementById('explanation-text');
   if (q.explanation && q.explanation.trim() !== '') {
-    expBox.textContent = q.explanation;
+    expBox.textContent = decodeEntities(q.explanation);
   } else {
     expBox.textContent = "No explanation provided for this question.";
   }
 
-  // Handle Explanation Image (fb_image)
   const expImg = document.getElementById('explanation-image');
   if (q.fb_image && q.fb_image.trim() !== '') {
     expImg.src = q.fb_image;
@@ -368,10 +474,8 @@ function renderReviewQuestion(index) {
     expImg.style.display = 'none';
   }
 
-  // Smooth scroll to the detail area
   detailArea.scrollIntoView({ behavior: 'smooth' });
 
-  // Trigger MathJax rendering for review view content
   if (window.MathJax) {
     MathJax.typeset();
   }
@@ -385,6 +489,7 @@ document.getElementById('back-to-grid-btn').addEventListener('click', () => {
 document.getElementById('next-btn').addEventListener('click', () => {
   if (currentIndex < questions.length - 1) {
     currentIndex++;
+    saveTestSession();
     renderCurrentQuestion();
   } else {
     submitTest();
@@ -394,8 +499,25 @@ document.getElementById('next-btn').addEventListener('click', () => {
 document.getElementById('prev-btn').addEventListener('click', () => {
   if (currentIndex > 0) {
     currentIndex--;
+    saveTestSession();
     renderCurrentQuestion();
   }
+});
+
+// Explicit "Finish Test" button
+document.getElementById('finish-test-btn').addEventListener('click', () => {
+  submitTest();
+});
+
+// Navigation from Review View
+document.getElementById('dashboard-btn').addEventListener('click', () => {
+  clearTestSession();
+  window.location.href = 'mainpage.html'; 
+});
+
+document.getElementById('start-new-test-btn').addEventListener('click', () => {
+  clearTestSession();
+  window.location.reload();
 });
 
 initQuiz();
