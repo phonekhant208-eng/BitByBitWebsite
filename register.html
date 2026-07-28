@@ -168,41 +168,100 @@
     <p class="switch-page">Already activated? <a href="loginpage.html">Log in here</a></p>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const _supabase = window.supabase.createClient(
-      "https://qyzsymedekmekgosykik.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU"
-    );
+ <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const _supabase = window.supabase.createClient(
+    "https://qyzsymedekmekgosykik.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU"
+  );
 
-    async function register() {
-      const email = document.getElementById('email').value.trim().toLowerCase();
-      const confirm = document.getElementById('confirmEmail').value.trim().toLowerCase();
-      const code = document.getElementById('gedCode').value.trim();
-      const msg = document.getElementById('msg');
+  async function register() {
+    const email = document.getElementById('email').value.trim().toLowerCase();
+    const confirm = document.getElementById('confirmEmail').value.trim().toLowerCase();
+    const code = document.getElementById('gedCode').value.trim();
+    const msg = document.getElementById('msg');
 
-      if (email !== confirm) { msg.textContent = 'Emails do not match'; return; }
-
-      msg.textContent = 'Checking code...';
-
-      const { data: row } = await _supabase.from('CodeDatabase').select('*').eq('code', code).maybeSingle();
-      if (!row) { msg.textContent = 'Code not found'; return; }
-      if (row.is_used) { msg.textContent = 'Code already used — go to login'; return; }
-
-      msg.textContent = 'Creating account...';
-      const { data: authData, error: signUpError } = await _supabase.auth.signUp({ email, password: code });
-      if (signUpError) { msg.textContent = 'SignUp error: ' + signUpError.message; return; }
-
-      msg.textContent = 'Marking code...';
-      await _supabase.from('CodeDatabase').update({ is_used: true, bound_user_id: authData.user.id }).eq('code', code);
-
-      msg.textContent = 'Logging in...';
-      const { error: loginError } = await _supabase.auth.signInWithPassword({ email, password: code });
-      if (loginError) { msg.textContent = 'Login error: ' + loginError.message; return; }
-
-      msg.textContent = 'Success! Redirecting...';
-      setTimeout(() => { window.location.href = 'mainpage.html'; }, 1500);
+    if (!email || !confirm || !code) {
+      msg.textContent = 'Please fill out all fields.';
+      return;
     }
-  </script>
+
+    if (email !== confirm) { 
+      msg.textContent = 'Emails do not match.'; 
+      return; 
+    }
+
+    msg.textContent = 'Checking code...';
+
+    // 1. Check if the code exists and if it is already used
+    const { data: row, error: fetchError } = await _supabase
+      .from('CodeDatabase')
+      .select('*')
+      .eq('code', code)
+      .maybeSingle();
+
+    if (fetchError) {
+      msg.textContent = 'Database error: ' + fetchError.message;
+      return;
+    }
+
+    if (!row) {
+      msg.textContent = 'Invalid code. Please check and try again.';
+      return;
+    }
+
+    if (row.is_used) {
+      msg.textContent = 'This code has already been used — please log in.';
+      return;
+    }
+
+    // 2. Create the account in Supabase Auth
+    msg.textContent = 'Creating account...';
+    const { data: authData, error: signUpError } = await _supabase.auth.signUp({ 
+      email: email, 
+      password: code 
+    });
+
+    if (signUpError) { 
+      msg.textContent = 'SignUp error: ' + signUpError.message; 
+      return; 
+    }
+
+    // 3. Log in IMMEDIATELY so Supabase grants an authenticated session token
+    msg.textContent = 'Logging in...';
+    const { data: loginData, error: loginError } = await _supabase.auth.signInWithPassword({ 
+      email: email, 
+      password: code 
+    });
+
+    if (loginError) { 
+      msg.textContent = 'Login error: ' + loginError.message; 
+      return; 
+    }
+
+    // 4. NOW mark the code as used (runs as an authenticated user)
+    msg.textContent = 'Activating code...';
+    const activeUserId = loginData.user ? loginData.user.id : authData.user.id;
+
+    const { error: updateError } = await _supabase
+      .from('CodeDatabase')
+      .update({ 
+        is_used: true, 
+        bound_user_id: activeUserId 
+      })
+      .eq('code', code);
+
+    if (updateError) {
+      msg.textContent = 'Error updating code status: ' + updateError.message;
+      return;
+    }
+
+    // 5. Success
+    msg.textContent = 'Success! Redirecting to dashboard...';
+    setTimeout(() => { 
+      window.location.href = 'mainpage.html'; 
+    }, 1200);
+  }
+</script>
 </body>
 </html>

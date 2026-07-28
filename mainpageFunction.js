@@ -12,6 +12,23 @@
     console.error("Initialization error:", err);
   }
 
+  
+  // AUTHENTICATION GUARD
+  async function checkAuth() {
+    if (!dbClient) return;
+    
+  
+    const { data: { user } } = await dbClient.auth.getUser();
+    if (!user) {
+      window.location.href = '/register.html';
+      return; 
+    }
+  }
+
+  // Run the check immediately
+  checkAuth();
+  // ==========================================
+
   async function loadDashboard() {
     if (!dbClient) return;
 
@@ -99,7 +116,7 @@
     async function logout(e) {
       e.preventDefault();
       if(dbClient) await dbClient.auth.signOut();
-      window.location.href = "loginpage.html";
+      window.location.href = "loginpage.html"; // Ensure this matches your login file name
     }
     document.getElementById('logout-btn').addEventListener('click', logout);
     document.getElementById('logout-mobile').addEventListener('click', logout);
