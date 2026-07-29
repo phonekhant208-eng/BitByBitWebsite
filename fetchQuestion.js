@@ -63,7 +63,6 @@ function startTimer(endTime) {
 
 // ==========================================
 // HELPERS & DECODER
-// ==========================================
 function decodeEntities(str) {
   if (!str) return '';
   const txt = document.createElement('textarea');
@@ -82,10 +81,13 @@ function showCustomConfirm(missingQuestions) {
     countEl.textContent = missingQuestions.length;
     listEl.textContent = missingQuestions.join(', ');
     
-    modal.style.display = 'flex';
+    // Match the active class pattern used by your other modals
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
     
     const cleanup = () => {
-      modal.style.display = 'none';
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
       confirmBtn.onclick = null;
       cancelBtn.onclick = null;
     };
