@@ -458,15 +458,23 @@ function renderReviewQuestion(index) {
     container.appendChild(div);
   });
 
-  const expBox = document.getElementById('explanation-text');
-  if (q.explanation && q.explanation.trim() !== '') {
+ const expBox = document.getElementById('explanation-text');
+  const expImg = document.getElementById('explanation-image');
+
+  const hasText = q.explanation && q.explanation.trim() !== '';
+  const hasImage = q.fb_image && q.fb_image.trim() !== '';
+
+  // Handle the Explanation Text
+  if (hasText) {
     expBox.textContent = decodeEntities(q.explanation);
+  } else if (hasImage) {
+    expBox.textContent = ''; 
   } else {
     expBox.textContent = "No explanation provided for this question.";
   }
 
-  const expImg = document.getElementById('explanation-image');
-  if (q.fb_image && q.fb_image.trim() !== '') {
+  // Handle the Explanation Image
+  if (hasImage) {
     expImg.src = q.fb_image;
     expImg.style.display = 'block';
   } else {
