@@ -79,11 +79,94 @@
       .progress-info {
         display: flex;
         justify-content: space-between;
+        align-items: center; /* Aligned for the new trigger button */
         font-size: 0.875rem;
         color: #6b7280;
         font-weight: 600;
         margin-bottom: 8px;
       }
+      
+      /* --- NEW: Grid Popover Navigation Styles --- */
+      .question-nav-wrapper {
+        position: relative;
+      }
+      .question-trigger {
+        background: transparent;
+        border: none;
+        color: #4f46e5;
+        font-weight: 700;
+        font-size: 0.95rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 6px;
+        margin-left: -10px; /* Aligns visually with the edge */
+        transition: background 0.2s;
+      }
+      .question-trigger:hover {
+        background: rgba(79, 70, 229, 0.1);
+      }
+      .question-trigger .arrow {
+        font-size: 0.7rem;
+        transition: transform 0.2s;
+      }
+      .question-trigger.open .arrow {
+        transform: rotate(180deg);
+      }
+      .grid-popover {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        margin-top: 8px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        padding: 16px;
+        z-index: 50;
+        width: 310px; /* Width to hold 8 columns comfortably */
+        display: none; /* Hidden by default */
+      }
+      .grid-popover.show {
+        display: block;
+      }
+      .nav-grid-container {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 6px;
+      }
+      .nav-q-num {
+        width: 100%;
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+        background: #f9fafb;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #374151;
+        transition: all 0.2s;
+      }
+      .nav-q-num:hover {
+        border-color: #a5b4fc;
+      }
+      .nav-q-num.active {
+        background: #4f46e5;
+        color: white;
+        border-color: #4f46e5;
+      }
+      .nav-q-num.answered {
+        background: #def7ec;
+        color: #03543f;
+        border-color: #31c48d;
+      }
+      /* --- END Grid Popover Styles --- */
+
       .timer-text {
         font-size: 1.1rem;
         color: #dc2626;
@@ -481,7 +564,6 @@
       body.dark-mode .btn-primary:hover {
         background-color: #4f46e5;
       }
-
       body.dark-mode .btn-finish {
         color: #f87171;
         border-color: #f87171;
@@ -489,6 +571,36 @@
       body.dark-mode .btn-finish:hover {
         background: #f87171;
         color: #111827;
+      }
+
+      /* Dark Mode for Grid Nav Popover */
+      body.dark-mode .question-trigger {
+        color: #818cf8;
+      }
+      body.dark-mode .question-trigger:hover {
+        background: rgba(129, 140, 248, 0.1);
+      }
+      body.dark-mode .grid-popover {
+        background: #1f2937;
+        border-color: #374151;
+      }
+      body.dark-mode .nav-q-num {
+        background: #374151;
+        border-color: #4b5563;
+        color: #e5e7eb;
+      }
+      body.dark-mode .nav-q-num:hover {
+        border-color: #818cf8;
+      }
+      body.dark-mode .nav-q-num.active {
+        background: #6366f1;
+        border-color: #6366f1;
+        color: #fff;
+      }
+      body.dark-mode .nav-q-num.answered {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        border-color: #10b981;
       }
 
       /* Modal Dark Mode */
@@ -536,8 +648,6 @@
       }
 
       /*Formula sheet */
-
-      /* Utility Button Styling */
       .utility-btn {
         background: transparent;
         border: 1px solid #e2e8f0;
@@ -554,7 +664,6 @@
           background-color 0.2s ease,
           border-color 0.2s ease;
       }
-
       .utility-btn:hover {
         background-color: rgba(0, 0, 0, 0.05);
       }
@@ -578,14 +687,10 @@
           opacity 0.25s ease,
           visibility 0.25s ease;
       }
-
-      /* Modal Open State */
       .modal-overlay.active {
         opacity: 1;
         visibility: visible;
       }
-
-      /* Modal Box Container */
       .modal-content {
         background-color: var(--bg-card, #ffffff);
         color: var(--text-color, #1e293b);
@@ -600,12 +705,9 @@
         transition: transform 0.25s ease;
         overflow: hidden;
       }
-
       .modal-overlay.active .modal-content {
         transform: scale(1);
       }
-
-      /* Modal Header */
       .modal-header {
         display: flex;
         justify-content: space-between;
@@ -613,13 +715,11 @@
         padding: 16px 20px;
         border-bottom: 1px solid rgba(0, 0, 0, 0.1);
       }
-
       .modal-header h3 {
         margin: 0;
         font-size: 18px;
         font-weight: 600;
       }
-
       .close-btn {
         background: none;
         border: none;
@@ -629,18 +729,14 @@
         color: inherit;
         opacity: 0.7;
       }
-
       .close-btn:hover {
         opacity: 1;
       }
-
-      /* Modal Body & Image Scroll Area */
       .modal-body {
         padding: 16px;
         overflow-y: auto;
         text-align: center;
       }
-
       .modal-body img {
         max-width: 100%;
         height: auto;
@@ -692,7 +788,6 @@
               <button id="close-calc-btn" class="close-btn" aria-label="Close">&times;</button>
             </div>
             <div class="modal-body calc-modal-body">
-              <!-- Embed the local calculator -->
               <iframe 
                 src="cal/index.html" 
                 id="calc-iframe"
@@ -708,7 +803,22 @@
       <div id="quiz-view">
         <div class="quiz-header">
           <div class="progress-info">
-            <span id="progress-text">Question 1 of 40</span>
+            
+            <!-- NEW: Interactive Grid Popover Trigger -->
+            <div class="question-nav-wrapper">
+              <button id="question-nav-trigger" class="question-trigger" aria-haspopup="true" aria-expanded="false">
+                <span id="progress-text">Question 1 of 40</span>
+                <span class="arrow">▼</span>
+              </button>
+              
+              <!-- Popover that drops down -->
+              <div id="questionGridPopover" class="grid-popover">
+                <div class="nav-grid-container" id="nav-grid-container">
+                  <!-- Grid buttons will be generated by JS here -->
+                </div>
+              </div>
+            </div>
+            
             <div class="timer-theme-wrapper">
               <!-- Formula Sheet Modal Popup -->
               <div id="formula-modal" class="modal-overlay" aria-hidden="true">
@@ -724,7 +834,6 @@
                     </button>
                   </div>
                   <div class="modal-body">
-                    <!-- Replace 'formula-sheet.png' with your actual image path or URL -->
                     <img
                       src="images/ed060c3084f9e2abd00ffacea0dc5e48.jpg"
                       alt="GED Math Formula Sheet"
@@ -843,7 +952,52 @@
     </div>
 
     <script>
-      // Simple Dark Mode Toggle Logic
+      // -----------------------------------------------------------------
+      // GRID POPOVER NAVIGATION LOGIC
+      // -----------------------------------------------------------------
+      const totalQuestionsForGrid = 40; // Change this variable if your total questions change.
+      const navTriggerBtn = document.getElementById("question-nav-trigger");
+      const gridPopover = document.getElementById("questionGridPopover");
+      const gridContainer = document.getElementById("nav-grid-container");
+
+      // Generate grid buttons dynamically based on total questions
+      for (let i = 1; i <= totalQuestionsForGrid; i++) {
+        const btn = document.createElement("button");
+        btn.classList.add("nav-q-num");
+        btn.textContent = i;
+        btn.id = `nav-grid-btn-${i}`;
+        
+        // Example: If it's question 1, mark as active initially
+        if (i === 1) btn.classList.add("active");
+
+        // Optional: you can add a click listener here to jump to a question
+        // btn.addEventListener("click", () => goToQuestion(i));
+        
+        gridContainer.appendChild(btn);
+      }
+
+      // Toggle the popover
+      navTriggerBtn.addEventListener("click", (e) => {
+        e.stopPropagation(); // prevent closing instantly
+        gridPopover.classList.toggle("show");
+        navTriggerBtn.classList.toggle("open");
+        const isOpen = gridPopover.classList.contains("show");
+        navTriggerBtn.setAttribute("aria-expanded", isOpen);
+      });
+
+      // Close the popover if clicked anywhere outside of it
+      document.addEventListener("click", (e) => {
+        if (!gridPopover.contains(e.target) && !navTriggerBtn.contains(e.target)) {
+          gridPopover.classList.remove("show");
+          navTriggerBtn.classList.remove("open");
+          navTriggerBtn.setAttribute("aria-expanded", "false");
+        }
+      });
+
+
+      // -----------------------------------------------------------------
+      // THEME TOGGLE LOGIC
+      // -----------------------------------------------------------------
       const themeBtn = document.getElementById("theme-btn");
       const body = document.body;
 
@@ -862,6 +1016,10 @@
           themeBtn.textContent = "🌙";
         }
       });
+
+      // -----------------------------------------------------------------
+      // MODAL LOGIC (Formulas & Calculator)
+      // -----------------------------------------------------------------
       document.addEventListener("DOMContentLoaded", () => {
         const formulaBtn = document.getElementById("formula-btn");
         const formulaModal = document.getElementById("formula-modal");
@@ -873,23 +1031,17 @@
           formulaModal.setAttribute("aria-hidden", "false");
         });
 
-        // Close Modal Function
         const closeModal = () => {
           formulaModal.classList.remove("active");
           formulaModal.setAttribute("aria-hidden", "true");
         };
 
-        // Close on 'X' Button Click
         closeFormulaBtn.addEventListener("click", closeModal);
 
-        // Close on Backdrop/Outside Click
         formulaModal.addEventListener("click", (e) => {
-          if (e.target === formulaModal) {
-            closeModal();
-          }
+          if (e.target === formulaModal) closeModal();
         });
 
-        // Close on Pressing 'Escape' Key
         document.addEventListener("keydown", (e) => {
           if (e.key === "Escape" && formulaModal.classList.contains("active")) {
             closeModal();
@@ -897,29 +1049,26 @@
         });
       });
 
-      
-  const calcBtn = document.getElementById('calc-btn');
-  const calcModal = document.getElementById('calc-modal');
-  const closeCalcBtn = document.getElementById('close-calc-btn');
+      // Calculator Logic
+      const calcBtn = document.getElementById('calc-btn');
+      const calcModal = document.getElementById('calc-modal');
+      const closeCalcBtn = document.getElementById('close-calc-btn');
 
-  // Open Modal
-  calcBtn.addEventListener('click', () => {
-    calcModal.classList.add('active');
-    calcModal.setAttribute('aria-hidden', 'false');
-  });
+      calcBtn.addEventListener('click', () => {
+        calcModal.classList.add('active');
+        calcModal.setAttribute('aria-hidden', 'false');
+      });
 
-  // Close Modal
-  const closeCalcModal = () => {
-    calcModal.classList.remove('active');
-    calcModal.setAttribute('aria-hidden', 'true');
-  };
+      const closeCalcModal = () => {
+        calcModal.classList.remove('active');
+        calcModal.setAttribute('aria-hidden', 'true');
+      };
 
-  closeCalcBtn.addEventListener('click', closeCalcModal);
+      closeCalcBtn.addEventListener('click', closeCalcModal);
 
-  // Close on outside click
-  calcModal.addEventListener('click', (e) => {
-    if (e.target === calcModal) closeCalcModal();
-  });
+      calcModal.addEventListener('click', (e) => {
+        if (e.target === calcModal) closeCalcModal();
+      });
 
     </script>
   </body>
