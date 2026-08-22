@@ -13,773 +13,193 @@
       async
     ></script>
     <style>
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      }
-      body {
-        background-color: #f3f4f6;
-        color: #1f2937;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 100vh;
-        padding: 20px;
-        transition:
-          background-color 0.3s,
-          color 0.3s;
-      }
-      .quiz-card {
-        background: #ffffff;
-        width: 100%;
-        max-width: 640px;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        padding: 32px;
-        position: relative;
-        transition:
-          background 0.3s,
-          box-shadow 0.3s;
-      }
+      * { box-sizing: border-box; margin: 0; padding: 0;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      body { background-color: #f3f4f6; color: #1f2937; display: flex;
+             justify-content: center; align-items: center; min-height: 100vh;
+             padding: 20px; transition: background-color 0.3s, color 0.3s; }
+      .quiz-card { background: #ffffff; width: 100%; max-width: 640px; border-radius: 12px;
+                   box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 32px; position: relative;
+                   transition: background 0.3s, box-shadow 0.3s; }
+      .theme-toggle-btn { position: static; background: transparent; border: 2px solid #e5e7eb;
+                          border-radius: 50%; width: 32px; height: 32px; display: flex;
+                          align-items: center; justify-content: center; cursor: pointer;
+                          font-size: 0.9rem; transition: all 0.2s; padding: 0; line-height: 1; }
+      .timer-theme-wrapper { display: flex; align-items: center; gap: 8px; }
+      .theme-toggle-btn:hover { background-color: rgba(0,0,0,0.05); }
+      .quiz-header { margin-bottom: 24px; }
+      .progress-info { display: flex; justify-content: space-between; align-items: center;
+                       font-size: 0.875rem; color: #6b7280; font-weight: 600; margin-bottom: 8px; }
 
-      /* Theme Toggle Button */
-      .theme-toggle-btn {
-        position: static;
-        background: transparent;
-        border: 2px solid #e5e7eb;
-        border-radius: 50%;
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        font-size: 0.9rem;
-        transition: all 0.2s;
-        padding: 0;
-        line-height: 1;
-      }
+      /* Grid Popover Nav */
+      .question-nav-wrapper { position: relative; }
+      .question-trigger { background: transparent; border: none; color: #4f46e5; font-weight: 700;
+                          font-size: 0.95rem; cursor: pointer; display: flex; align-items: center;
+                          gap: 6px; padding: 6px 10px; border-radius: 6px; margin-left: -10px;
+                          transition: background 0.2s; }
+      .question-trigger:hover { background: rgba(79,70,229,0.1); }
+      .question-trigger .arrow { font-size: 0.7rem; transition: transform 0.2s; }
+      .question-trigger.open .arrow { transform: rotate(180deg); }
+      .grid-popover { position: absolute; top: 100%; left: 0; margin-top: 8px;
+                      background: #ffffff; border: 1px solid #e5e7eb;
+                      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-radius: 12px;
+                      padding: 16px; z-index: 50; width: 310px; display: none; }
+      .grid-popover.show { display: block; }
+      .nav-grid-container { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+      .nav-q-num { width: 100%; aspect-ratio: 1; display: flex; align-items: center;
+                   justify-content: center; border-radius: 6px; border: 1px solid #e5e7eb;
+                   background: #f9fafb; cursor: pointer; font-size: 0.8rem; font-weight: 600;
+                   color: #374151; transition: all 0.2s; }
+      .nav-q-num:hover { border-color: #a5b4fc; }
+      /* Active = currently viewing (blue) */
+      .nav-q-num.active { background: #4f46e5; color: white; border-color: #4f46e5; }
+      /* Answered = has a selected answer (orange/amber — neutral, not right/wrong) */
+      .nav-q-num.answered { background: #fff7ed; color: #c2410c; border-color: #fb923c; }
 
-      .timer-theme-wrapper {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-      .theme-toggle-btn:hover {
-        background-color: rgba(0, 0, 0, 0.05);
-      }
+      .timer-text { font-size: 1.1rem; color: #dc2626; font-weight: bold;
+                    background: #fee2e2; padding: 4px 10px; border-radius: 6px; }
+      .calAndsheetContainer { display: flex; justify-content: space-between; margin-right: 10px; }
+      .progress-bar { width: 100%; height: 8px; background-color: #e5e7eb;
+                      border-radius: 999px; overflow: hidden; margin-top: 10px; }
+      .progress-fill { width: 0%; height: 100%; background-color: #4f46e5; transition: width 0.3s ease; }
 
-      /* Header & Timer */
-      .quiz-header {
-        margin-bottom: 24px;
-      }
-      .progress-info {
-        display: flex;
-        justify-content: space-between;
-        align-items: center; /* Aligned for the new trigger button */
-        font-size: 0.875rem;
-        color: #6b7280;
-        font-weight: 600;
-        margin-bottom: 8px;
-      }
-      
-      /* --- NEW: Grid Popover Navigation Styles --- */
-      .question-nav-wrapper {
-        position: relative;
-      }
-      .question-trigger {
-        background: transparent;
-        border: none;
-        color: #4f46e5;
-        font-weight: 700;
-        font-size: 0.95rem;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 10px;
-        border-radius: 6px;
-        margin-left: -10px; /* Aligns visually with the edge */
-        transition: background 0.2s;
-      }
-      .question-trigger:hover {
-        background: rgba(79, 70, 229, 0.1);
-      }
-      .question-trigger .arrow {
-        font-size: 0.7rem;
-        transition: transform 0.2s;
-      }
-      .question-trigger.open .arrow {
-        transform: rotate(180deg);
-      }
-      .grid-popover {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        margin-top: 8px;
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        border-radius: 12px;
-        padding: 16px;
-        z-index: 50;
-        width: 310px; /* Width to hold 8 columns comfortably */
-        display: none; /* Hidden by default */
-      }
-      .grid-popover.show {
-        display: block;
-      }
-      .nav-grid-container {
-        display: grid;
-        grid-template-columns: repeat(8, 1fr);
-        gap: 6px;
-      }
-      .nav-q-num {
-        width: 100%;
-        aspect-ratio: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 6px;
-        border: 1px solid #e5e7eb;
-        background: #f9fafb;
-        cursor: pointer;
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: #374151;
-        transition: all 0.2s;
-      }
-      .nav-q-num:hover {
-        border-color: #a5b4fc;
-      }
-      .nav-q-num.active {
-        background: #4f46e5;
-        color: white;
-        border-color: #4f46e5;
-      }
-      .nav-q-num.answered {
-        background: #def7ec;
-        color: #03543f;
-        border-color: #31c48d;
-      }
-      /* --- END Grid Popover Styles --- */
+      /* Modal */
+      .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                       background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+                       display: flex; justify-content: center; align-items: center; z-index: 1000;
+                       opacity: 0; visibility: hidden; transition: opacity 0.25s ease, visibility 0.25s ease; }
+      .modal-overlay.active { opacity: 1; visibility: visible; }
+      .modal-content { background-color: #ffffff; border-radius: 12px;
+                       box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); overflow: hidden; }
+      .calc-modal-content { max-width: 480px; width: 90%; }
+      .modal-header { display: flex; justify-content: space-between; align-items: center;
+                      padding: 12px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+      .modal-header h3 { margin: 0; font-size: 16px; color: #0077b6; }
+      .close-btn { background: none; border: none; font-size: 22px; cursor: pointer; color: #64748b; }
+      .close-btn:hover { color: #0f172a; }
+      .modal-body { padding: 16px; overflow-y: auto; text-align: center; }
+      .modal-body img { max-width: 100%; height: auto; border-radius: 6px; display: block; margin: 0 auto; }
+      .modal-content.sheet-modal { max-width: 800px; width: 90%; max-height: 90vh;
+                                   display: flex; flex-direction: column; }
+      .utility-btn { background: transparent; border: 1px solid #e2e8f0; border-radius: 8px;
+                     padding: 6px 12px; cursor: pointer; font-size: 14px; display: inline-flex;
+                     align-items: center; gap: 6px; margin-bottom: 15px; color: inherit;
+                     transition: background-color 0.2s, border-color 0.2s; }
+      .utility-btn:hover { background-color: rgba(0,0,0,0.05); }
+      .question-title { font-size: 1.25rem; font-weight: 600; line-height: 1.5; margin-bottom: 16px; }
+      .question-image { max-width: 100%; border-radius: 8px; margin-bottom: 24px; display: none; }
+      .options-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+      .option { display: flex; align-items: center; padding: 16px; border: 2px solid #e5e7eb;
+                border-radius: 8px; cursor: pointer; transition: all 0.2s; background: #fff; }
+      .option input[type="radio"] { margin-right: 14px; width: 20px; height: 20px;
+                                    accent-color: #4f46e5; cursor: pointer; }
+      .option:hover { border-color: #a5b4fc; }
+      .option-text { font-weight: 500; }
+      .quiz-footer { display: flex; justify-content: space-between; padding-top: 20px;
+                     border-top: 1px solid #f3f4f6; }
+      .btn { padding: 10px 20px; font-weight: 600; border-radius: 6px; cursor: pointer;
+             border: none; font-size: 0.95rem; }
+      .btn-secondary { background-color: #f3f4f6; color: #4b5563; }
+      .btn-secondary:hover { background-color: #e5e7eb; }
+      .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+      .btn-primary { background-color: #4f46e5; color: white; }
+      .btn-primary:hover { background-color: #4338ca; }
+      .btn-danger { background-color: #ef4444; color: white; }
+      .btn-danger:hover { background-color: #dc2626; }
+      .btn-finish { background: transparent; color: #ef4444; border: 2px solid #ef4444;
+                    width: 100%; margin-top: 16px; transition: all 0.2s; }
+      .btn-finish:hover { background: #ef4444; color: white; }
+      #review-view { display: none; }
+      .score-container { text-align: center; margin-bottom: 24px; padding: 24px;
+                         background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; }
+      .score-container h2 { font-size: 1.5rem; color: #4f46e5; margin-bottom: 8px; }
+      .review-nav-actions { display: flex; gap: 12px; justify-content: center;
+                            margin-top: 16px; flex-wrap: wrap; }
+      .review-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 10px; margin-bottom: 30px; }
+      @media (max-width: 500px) { .review-grid { grid-template-columns: repeat(5, 1fr); } }
+      .grid-btn { padding: 12px 0; font-weight: bold; font-size: 1rem; color: #fff;
+                  border: none; border-radius: 6px; cursor: pointer; transition: transform 0.1s; }
+      .grid-btn:hover { transform: scale(1.05); opacity: 0.9; }
+      .bg-correct { background-color: #10b981; }
+      .bg-incorrect { background-color: #ef4444; }
+      .bg-unanswered { background-color: #6b7280; }
+      .review-detail { display: none; padding-top: 24px; border-top: 1px solid #e5e7eb; }
+      .correct-ans { border-color: #10b981; background: #ecfdf5; }
+      .wrong-ans { border-color: #ef4444; background: #fef2f2; }
+      .explanation-box { background: #eff6ff; border: 1px solid #bfdbfe; padding: 16px;
+                         border-radius: 8px; margin-top: 24px; }
+      .explanation-box h4 { margin-bottom: 8px; color: #1d4ed8; }
+      .explanation-box p { font-size: 0.95rem; line-height: 1.6; }
+      .explanation-image { max-width: 100%; border-radius: 8px; margin-top: 12px; display: none; }
+      .modal-actions { display: flex; justify-content: space-between; gap: 12px; }
+      .modal-actions button { flex: 1; }
 
-      .timer-text {
-        font-size: 1.1rem;
-        color: #dc2626;
-        font-weight: bold;
-        background: #fee2e2;
-        padding: 4px 10px;
-        border-radius: 6px;
-      }
+      /* Confirm Modal */
+      #custom-modal .modal-content { background: #fff; padding: 24px; border-radius: 12px;
+                                     max-width: 400px; width: 90%;
+                                     box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; }
+      #custom-modal .modal-content h3 { color: #0077b6; margin-bottom: 12px; }
+      #custom-modal .modal-content p { margin-bottom: 20px; line-height: 1.5; color: #4b5563; }
 
-      .calAndsheetContainer{
-        display: flex;
-        justify-content: space-between;
-      }
-      .progress-bar {
-        width: 100%;
-        height: 8px;
-        background-color: #e5e7eb;
-        border-radius: 999px;
-        overflow: hidden;
-        margin-top: 10px;
-      }
-      .progress-fill {
-        width: 0%;
-        height: 100%;
-        background-color: #4f46e5;
-        transition: width 0.3s ease;
-      }
-
-       /* --- Modal Overlay (Hidden by Default) --- */
-      .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(4px);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-        /* Hides the modal by default */
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.25s ease, visibility 0.25s ease;
-      }
-
-      /* --- Show Modal When Active --- */
-      .modal-overlay.active {
-        opacity: 1;
-        visibility: visible;
-      }
-
-      /* --- Modal Box Layout --- */
-      .modal-content {
-        background-color: #ffffff;
-        border-radius: 12px;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-        overflow: hidden;
-      }
-
-      .calc-modal-content {
-        max-width: 480px;
-        width: 90%;
-      }
-
-      .calc-modal-body {
-        padding: 0;
-        overflow: hidden;
-      }
-
-      /* --- Modal Header & Buttons --- */
-      .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px 16px;
-        background: #f8fafc;
-        border-bottom: 1px solid #e2e8f0;
-      }
-
-      .modal-header h3 {
-        margin: 0;
-        font-size: 16px;
-        color: #0077b6;
-      }
-
-      .close-btn {
-        background: none;
-        border: none;
-        font-size: 22px;
-        cursor: pointer;
-        color: #64748b;
-      }
-
-      .close-btn:hover {
-        color: #0f172a;
-      }
-
-      .utility-btn {
-        padding: 8px 16px;
-        font-size: 14px;
-        cursor: pointer;
-        border-radius: 6px;
-        border: 1px solid #cbd5e1;
-        background-color: #ffffff;
-      }
-      /* Question, Images & Options */
-      .question-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        line-height: 1.5;
-        margin-bottom: 16px;
-      }
-      .question-image {
-        max-width: 100%;
-        border-radius: 8px;
-        margin-bottom: 24px;
-        display: none;
-      }
-      .options-list {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        margin-bottom: 32px;
-      }
-      .option {
-        display: flex;
-        align-items: center;
-        padding: 16px;
-        border: 2px solid #e5e7eb;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s;
-        background: #fff;
-      }
-      .option input[type="radio"] {
-        margin-right: 14px;
-        width: 20px;
-        height: 20px;
-        accent-color: #4f46e5;
-        cursor: pointer;
-      }
-      .option:hover {
-        border-color: #a5b4fc;
-      }
-      .option-text {
-        font-weight: 500;
-      }
-
-      /* Buttons */
-      .quiz-footer {
-        display: flex;
-        justify-content: space-between;
-        padding-top: 20px;
-        border-top: 1px solid #f3f4f6;
-      }
-      .btn {
-        padding: 10px 20px;
-        font-weight: 600;
-        border-radius: 6px;
-        cursor: pointer;
-        border: none;
-        font-size: 0.95rem;
-      }
-      .btn-secondary {
-        background-color: #f3f4f6;
-        color: #4b5563;
-      }
-      .btn-secondary:hover {
-        background-color: #e5e7eb;
-      }
-      .btn-secondary:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-      .btn-primary {
-        background-color: #4f46e5;
-        color: white;
-      }
-      .btn-primary:hover {
-        background-color: #4338ca;
-      }
-      .btn-danger {
-        background-color: #ef4444;
-        color: white;
-      }
-      .btn-danger:hover {
-        background-color: #dc2626;
-      }
-
-      /* Finish Test Early Button */
-      .btn-finish {
-        background: transparent;
-        color: #ef4444;
-        border: 2px solid #ef4444;
-        width: 100%;
-        margin-top: 16px;
-        transition: all 0.2s;
-      }
-      .btn-finish:hover {
-        background: #ef4444;
-        color: white;
-      }
-
-      /* Review View */
-      #review-view {
-        display: none;
-      }
-      .score-container {
-        text-align: center;
-        margin-bottom: 24px;
-        padding: 24px;
-        background: #f8fafc;
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
-      }
-      .score-container h2 {
-        font-size: 1.5rem;
-        color: #4f46e5;
-        margin-bottom: 8px;
-      }
-      .review-nav-actions {
-        display: flex;
-        gap: 12px;
-        justify-content: center;
-        margin-top: 16px;
-        flex-wrap: wrap;
-      }
-      .review-grid {
-        display: grid;
-        grid-template-columns: repeat(10, 1fr);
-        gap: 10px;
-        margin-bottom: 30px;
-      }
-      @media (max-width: 500px) {
-        .review-grid {
-          grid-template-columns: repeat(5, 1fr);
-        }
-      }
-      .grid-btn {
-        padding: 12px 0;
-        font-weight: bold;
-        font-size: 1rem;
-        color: #fff;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: transform 0.1s;
-      }
-      .grid-btn:hover {
-        transform: scale(1.05);
-        opacity: 0.9;
-      }
-      .bg-correct {
-        background-color: #10b981;
-      }
-      .bg-incorrect {
-        background-color: #ef4444;
-      }
-      .bg-unanswered {
-        background-color: #6b7280;
-      }
-
-      .review-detail {
-        display: none;
-        padding-top: 24px;
-        border-top: 1px solid #e5e7eb;
-      }
-      .correct-ans {
-        border-color: #10b981;
-        background: #ecfdf5;
-      }
-      .wrong-ans {
-        border-color: #ef4444;
-        background: #fef2f2;
-      }
-
-      .explanation-box {
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
-        padding: 16px;
-        border-radius: 8px;
-        margin-top: 24px;
-      }
-      .explanation-box h4 {
-        margin-bottom: 8px;
-        color: #1d4ed8;
-      }
-      .explanation-box p {
-        font-size: 0.95rem;
-        line-height: 1.6;
-      }
-      .explanation-image {
-        max-width: 100%;
-        border-radius: 8px;
-        margin-top: 12px;
-        display: none;
-      }
-       .calAndsheetContainer {
-        margin-right: 10px;
-      }
-      /* Modal Styling */
-      .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        display: none;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-      }
-      .modal-content {
-        background: #fff;
-        padding: 24px;
-        border-radius: 12px;
-        max-width: 400px;
-        width: 90%;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-        text-align: center;
-      }
-      .modal-content h3 {
-        color: #0077b6;
-        margin-bottom: 12px;
-      }
-      .modal-content p {
-        margin-bottom: 20px;
-        line-height: 1.5;
-        color: #4b5563;
-      }
-      .modal-actions {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-      }
-      .modal-actions button {
-        flex: 1;
-      }
-
-      /* ---------------- DARK MODE STYLES ---------------- */
-      body.dark-mode {
-        background-color: #111827;
-        color: #f9fafb;
-      }
-      body.dark-mode .quiz-card {
-        background-color: #1f2937;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        border: 1px solid #374151;
-      }
-      body.dark-mode .theme-toggle-btn {
-        border-color: #4b5563;
-        color: #f9fafb;
-      }
-      body.dark-mode .theme-toggle-btn:hover {
-        background-color: rgba(255, 255, 255, 0.1);
-      }
-      body.dark-mode .progress-info {
-        color: #9ca3af;
-      }
-      body.dark-mode .timer-text {
-        background-color: rgba(220, 38, 38, 0.2);
-        color: #f87171;
-      }
-      body.dark-mode .progress-bar {
-        background-color: #374151;
-      }
-      body.dark-mode .progress-fill {
-        background-color: #6366f1;
-      }
-      body.dark-mode .option {
-        background-color: #374151;
-        border-color: #4b5563;
-        color: #e5e7eb;
-      }
-      body.dark-mode .option:hover {
-        border-color: #818cf8;
-      }
-      body.dark-mode .quiz-footer,
-      body.dark-mode .review-detail {
-        border-color: #374151;
-      }
-      body.dark-mode .btn-secondary {
-        background-color: #374151;
-        color: #d1d5db;
-      }
-      body.dark-mode .btn-secondary:hover {
-        background-color: #4b5563;
-      }
-      body.dark-mode .btn-primary {
-        background-color: #6366f1;
-      }
-      body.dark-mode .btn-primary:hover {
-        background-color: #4f46e5;
-      }
-      body.dark-mode .btn-finish {
-        color: #f87171;
-        border-color: #f87171;
-      }
-      body.dark-mode .btn-finish:hover {
-        background: #f87171;
-        color: #111827;
-      }
-
-      /* Dark Mode for Grid Nav Popover */
-      body.dark-mode .question-trigger {
-        color: #818cf8;
-      }
-      body.dark-mode .question-trigger:hover {
-        background: rgba(129, 140, 248, 0.1);
-      }
-      body.dark-mode .grid-popover {
-        background: #1f2937;
-        border-color: #374151;
-      }
-      body.dark-mode .nav-q-num {
-        background: #374151;
-        border-color: #4b5563;
-        color: #e5e7eb;
-      }
-      body.dark-mode .nav-q-num:hover {
-        border-color: #818cf8;
-      }
-      body.dark-mode .nav-q-num.active {
-        background: #6366f1;
-        border-color: #6366f1;
-        color: #fff;
-      }
-      body.dark-mode .nav-q-num.answered {
-        background: rgba(16, 185, 129, 0.2);
-        color: #34d399;
-        border-color: #10b981;
-      }
-
-      /* Modal Dark Mode */
-      body.dark-mode .modal-content {
-        background-color: #1f2937;
-        border: 1px solid #374151;
-      }
-      body.dark-mode .modal-content h3 {
-        color: #ffffff;
-      }
-      body.dark-mode .modal-content p {
-        color: #d1d5db;
-      }
-      body.dark-mode .modal-header {
-        background-color: #1f2937;
-        border-bottom: 1px solid #374151;
-      }
-      body.dark-mode .close-btn {
-        color: #ffffff;
-      }
-
-      /* Review View Dark Mode */
-      body.dark-mode .score-container {
-        background-color: #374151;
-        border-color: #4b5563;
-      }
-      body.dark-mode .score-container h2 {
-        color: #818cf8;
-      }
-      body.dark-mode .explanation-box {
-        background-color: #1e3a8a;
-        border-color: #1e40af;
-        color: #e0e7ff;
-      }
-      body.dark-mode .explanation-box h4 {
-        color: #93c5fd;
-      }
-      body.dark-mode .correct-ans {
-        background-color: rgba(16, 185, 129, 0.1);
-        border-color: #34d399;
-      }
-      body.dark-mode .wrong-ans {
-        background-color: rgba(239, 68, 68, 0.1);
-        border-color: #f87171;
-      }
-
-      /*Formula sheet */
-      .utility-btn {
-        background: transparent;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 6px 12px;
-        cursor: pointer;
-        font-size: 14px;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 15px;
-        color: inherit;
-        transition:
-          background-color 0.2s ease,
-          border-color 0.2s ease;
-      }
-      .utility-btn:hover {
-        background-color: rgba(0, 0, 0, 0.05);
-      }
-
-      /* Modal Overlay Background */
-      .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(4px);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-        opacity: 0;
-        visibility: hidden;
-        transition:
-          opacity 0.25s ease,
-          visibility 0.25s ease;
-      }
-      .modal-overlay.active {
-        opacity: 1;
-        visibility: visible;
-      }
-      .modal-content {
-        background-color: var(--bg-card, #ffffff);
-        color: var(--text-color, #1e293b);
-        border-radius: 12px;
-        width: 90%;
-        max-width: 800px;
-        max-height: 90vh;
-        display: flex;
-        flex-direction: column;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-        transform: scale(0.95);
-        transition: transform 0.25s ease;
-        overflow: hidden;
-      }
-      .modal-overlay.active .modal-content {
-        transform: scale(1);
-      }
-      .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px 20px;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-      }
-      .modal-header h3 {
-        margin: 0;
-        font-size: 18px;
-        font-weight: 600;
-      }
-      .close-btn {
-        background: none;
-        border: none;
-        font-size: 24px;
-        font-weight: bold;
-        cursor: pointer;
-        color: inherit;
-        opacity: 0.7;
-      }
-      .close-btn:hover {
-        opacity: 1;
-      }
-      .modal-body {
-        padding: 16px;
-        overflow-y: auto;
-        text-align: center;
-      }
-      .modal-body img {
-        max-width: 100%;
-        height: auto;
-        border-radius: 6px;
-        display: block;
-        margin: 0 auto;
-      }
+      /* Dark Mode */
+      body.dark-mode { background-color: #111827; color: #f9fafb; }
+      body.dark-mode .quiz-card { background-color: #1f2937; box-shadow: 0 4px 12px rgba(0,0,0,0.5); border: 1px solid #374151; }
+      body.dark-mode .theme-toggle-btn { border-color: #4b5563; color: #f9fafb; }
+      body.dark-mode .theme-toggle-btn:hover { background-color: rgba(255,255,255,0.1); }
+      body.dark-mode .progress-info { color: #9ca3af; }
+      body.dark-mode .timer-text { background-color: rgba(220,38,38,0.2); color: #f87171; }
+      body.dark-mode .progress-bar { background-color: #374151; }
+      body.dark-mode .progress-fill { background-color: #6366f1; }
+      body.dark-mode .option { background-color: #374151; border-color: #4b5563; color: #e5e7eb; }
+      body.dark-mode .option:hover { border-color: #818cf8; }
+      body.dark-mode .quiz-footer, body.dark-mode .review-detail { border-color: #374151; }
+      body.dark-mode .btn-secondary { background-color: #374151; color: #d1d5db; }
+      body.dark-mode .btn-secondary:hover { background-color: #4b5563; }
+      body.dark-mode .btn-primary { background-color: #6366f1; }
+      body.dark-mode .btn-primary:hover { background-color: #4f46e5; }
+      body.dark-mode .btn-finish { color: #f87171; border-color: #f87171; }
+      body.dark-mode .btn-finish:hover { background: #f87171; color: #111827; }
+      body.dark-mode .question-trigger { color: #818cf8; }
+      body.dark-mode .question-trigger:hover { background: rgba(129,140,248,0.1); }
+      body.dark-mode .grid-popover { background: #1f2937; border-color: #374151; }
+      body.dark-mode .nav-q-num { background: #374151; border-color: #4b5563; color: #e5e7eb; }
+      body.dark-mode .nav-q-num:hover { border-color: #818cf8; }
+      body.dark-mode .nav-q-num.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+      body.dark-mode .nav-q-num.answered { background: rgba(251,146,60,0.15); color: #fb923c; border-color: #fb923c; }
+      body.dark-mode .modal-content { background-color: #1f2937; border: 1px solid #374151; }
+      body.dark-mode .modal-header { background-color: #1f2937; border-bottom: 1px solid #374151; }
+      body.dark-mode .close-btn { color: #ffffff; }
+      body.dark-mode #custom-modal .modal-content h3 { color: #ffffff; }
+      body.dark-mode #custom-modal .modal-content p { color: #d1d5db; }
+      body.dark-mode .score-container { background-color: #374151; border-color: #4b5563; }
+      body.dark-mode .score-container h2 { color: #818cf8; }
+      body.dark-mode .explanation-box { background-color: #1e3a8a; border-color: #1e40af; color: #e0e7ff; }
+      body.dark-mode .explanation-box h4 { color: #93c5fd; }
+      body.dark-mode .correct-ans { background-color: rgba(16,185,129,0.1); border-color: #34d399; }
+      body.dark-mode .wrong-ans { background-color: rgba(239,68,68,0.1); border-color: #f87171; }
     </style>
   </head>
   <body>
-    <!-- Custom Confirmation Modal -->
+    <!-- Confirm Modal -->
     <div id="custom-modal" class="modal-overlay" aria-hidden="true">
       <div class="modal-content">
         <h3>⚠️ Unanswered Questions</h3>
-        <p>
-          You have <strong id="modal-missing-count"></strong> unanswered
-          question(s)!<br /><br />
-          Unanswered: <span id="modal-missing-list"></span>
-        </p>
+        <p>You have <strong id="modal-missing-count"></strong> unanswered question(s)!<br/><br/>
+           Unanswered: <span id="modal-missing-list"></span></p>
         <div class="modal-actions">
-          <button type="button" id="modal-cancel-btn" class="btn btn-secondary">
-            Continue Test
-          </button>
-          <button type="button" id="modal-confirm-btn" class="btn btn-danger">
-            Finish Anyway
-          </button>
+          <button type="button" id="modal-cancel-btn" class="btn btn-secondary">Continue Test</button>
+          <button type="button" id="modal-confirm-btn" class="btn btn-danger">Finish Anyway</button>
         </div>
       </div>
     </div>
 
     <div class="quiz-card" id="main-card">
       <div class="calAndsheetContainer">
-        <button
-          id="formula-btn"
-          class="utility-btn"
-          title="Formula Sheet"
-          aria-label="Open Formula Sheet">
+        <button id="formula-btn" class="utility-btn" title="Formula Sheet" aria-label="Open Formula Sheet">
           📋 <span>Formulas</span>
         </button>
-        <button id="calc-btn" class="utility-btn" title="Calculator">
-          🧮 <span>Calculator</span>
-        </button>
-        
+        <button id="calc-btn" class="utility-btn" title="Calculator">🧮 <span>Calculator</span></button>
+
         <!-- Calculator Modal -->
         <div id="calc-modal" class="modal-overlay" aria-hidden="true">
           <div class="modal-content calc-modal-content">
@@ -787,13 +207,9 @@
               <h3>Scientific Calculator</h3>
               <button id="close-calc-btn" class="close-btn" aria-label="Close">&times;</button>
             </div>
-            <div class="modal-body calc-modal-body">
-              <iframe 
-                src="cal/index.html" 
-                id="calc-iframe"
-                title="Scientific Calculator"
-                style="width: 100%; height: 650px; border: none; display: block;">
-              </iframe>
+            <div class="modal-body">
+              <iframe src="cal/index.html" id="calc-iframe" title="Scientific Calculator"
+                style="width:100%; height:650px; border:none; display:block;"></iframe>
             </div>
           </div>
         </div>
@@ -803,42 +219,28 @@
       <div id="quiz-view">
         <div class="quiz-header">
           <div class="progress-info">
-            
-            <!-- NEW: Interactive Grid Popover Trigger -->
             <div class="question-nav-wrapper">
               <button id="question-nav-trigger" class="question-trigger" aria-haspopup="true" aria-expanded="false">
                 <span id="progress-text">Question 1 of 40</span>
                 <span class="arrow">▼</span>
               </button>
-              
-              <!-- Popover that drops down -->
               <div id="questionGridPopover" class="grid-popover">
                 <div class="nav-grid-container" id="nav-grid-container">
-                  <!-- Grid buttons will be generated by JS here -->
+                  <!-- Built by fetchQuestion.js -->
                 </div>
               </div>
             </div>
-            
+
             <div class="timer-theme-wrapper">
-              <!-- Formula Sheet Modal Popup -->
+              <!-- Formula Modal -->
               <div id="formula-modal" class="modal-overlay" aria-hidden="true">
-                <div class="modal-content">
+                <div class="modal-content sheet-modal">
                   <div class="modal-header">
                     <h3>GED Math Formula Sheet</h3>
-                    <button
-                      id="close-formula-btn"
-                      class="close-btn"
-                      aria-label="Close"
-                    >
-                      &times;
-                    </button>
+                    <button id="close-formula-btn" class="close-btn" aria-label="Close">&times;</button>
                   </div>
                   <div class="modal-body">
-                    <img
-                      src="images/ed060c3084f9e2abd00ffacea0dc5e48.jpg"
-                      alt="GED Math Formula Sheet"
-                      id="formula-img"
-                    />
+                    <img src="images/ed060c3084f9e2abd00ffacea0dc5e48.jpg" alt="GED Math Formula Sheet" />
                   </div>
                 </div>
               </div>
@@ -846,105 +248,45 @@
               <button class="theme-toggle-btn" id="theme-btn">🌙</button>
             </div>
           </div>
-          <div class="progress-bar">
-            <div class="progress-fill" id="progress-fill"></div>
-          </div>
+          <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
         </div>
 
         <div class="question-container">
           <h2 class="question-title" id="question-text">Loading question...</h2>
-          <img
-            id="question-image"
-            class="question-image"
-            src=""
-            alt="Question Image"
-          />
-          <div class="options-list" id="options-container">
-            <!-- Options generated here -->
-          </div>
+          <img id="question-image" class="question-image" src="" alt="Question Image" />
+          <div class="options-list" id="options-container"></div>
         </div>
 
         <div class="quiz-footer">
-          <button
-            type="button"
-            class="btn btn-secondary"
-            id="prev-btn"
-            disabled
-          >
-            Previous
-          </button>
-          <button type="button" class="btn btn-primary" id="next-btn">
-            Next Question
-          </button>
+          <button type="button" class="btn btn-secondary" id="prev-btn" disabled>Previous</button>
+          <button type="button" class="btn btn-primary" id="next-btn">Next Question</button>
         </div>
-
-        <!-- Finish Test Early Button -->
-        <button type="button" class="btn btn-finish" id="finish-test-btn">
-          Finish Test
-        </button>
+        <button type="button" class="btn btn-finish" id="finish-test-btn">Finish Test</button>
       </div>
 
       <!-- REVIEW VIEW -->
       <div id="review-view">
         <div class="score-container">
           <h2>Test Completed!</h2>
-          <p id="score-text" style="font-weight: 600; font-size: 1.1rem"></p>
-
+          <p id="score-text" style="font-weight:600; font-size:1.1rem;"></p>
           <div class="review-nav-actions">
-            <button type="button" class="btn btn-secondary" id="dashboard-btn">
-              Go to Dashboard
-            </button>
-            <button
-              type="button"
-              class="btn btn-primary"
-              id="start-new-test-btn"
-            >
-              Start New Test
-            </button>
+            <button type="button" class="btn btn-secondary" id="dashboard-btn">Go to Dashboard</button>
+            <button type="button" class="btn btn-primary" id="start-new-test-btn">Start New Test</button>
           </div>
-
-          <p style="margin-top: 16px; font-size: 0.9rem; color: #6b7280">
-            Click any number below to review your answer.
-          </p>
+          <p style="margin-top:16px; font-size:0.9rem; color:#6b7280;">Click any number below to review your answer.</p>
         </div>
-
         <div class="review-grid" id="review-grid"></div>
-
         <div class="review-detail" id="review-detail-area">
-          <h3 id="review-q-num" style="margin-bottom: 12px; color: #4f46e5">
-            Reviewing Question
-          </h3>
+          <h3 id="review-q-num" style="margin-bottom:12px; color:#4f46e5;">Reviewing Question</h3>
           <h2 class="question-title" id="review-question-text"></h2>
-          <img
-            id="review-question-image"
-            class="question-image"
-            src=""
-            alt=""
-          />
-
-          <div
-            class="options-list"
-            id="review-options-container"
-            style="margin-bottom: 24px"
-          ></div>
-
+          <img id="review-question-image" class="question-image" src="" alt="" />
+          <div class="options-list" id="review-options-container" style="margin-bottom:24px;"></div>
           <div class="explanation-box">
             <h4>Explanation</h4>
             <p id="explanation-text"></p>
-            <img
-              id="explanation-image"
-              class="explanation-image"
-              src=""
-              alt="Explanation Image"
-            />
+            <img id="explanation-image" class="explanation-image" src="" alt="Explanation Image" />
           </div>
-
-          <button
-            type="button"
-            class="btn btn-primary"
-            id="back-to-grid-btn"
-            style="width: 100%; margin-top: 24px"
-          >
+          <button type="button" class="btn btn-primary" id="back-to-grid-btn" style="width:100%; margin-top:24px;">
             Back to Grid
           </button>
         </div>
@@ -952,40 +294,17 @@
     </div>
 
     <script>
-      // -----------------------------------------------------------------
-      // GRID POPOVER NAVIGATION LOGIC
-      // -----------------------------------------------------------------
-      const totalQuestionsForGrid = 40; // Change this variable if your total questions change.
+      // ── Popover Toggle ─────────────────────────────────────────────
       const navTriggerBtn = document.getElementById("question-nav-trigger");
-      const gridPopover = document.getElementById("questionGridPopover");
-      const gridContainer = document.getElementById("nav-grid-container");
+      const gridPopover   = document.getElementById("questionGridPopover");
 
-      // Generate grid buttons dynamically based on total questions
-      for (let i = 1; i <= totalQuestionsForGrid; i++) {
-        const btn = document.createElement("button");
-        btn.classList.add("nav-q-num");
-        btn.textContent = i;
-        btn.id = `nav-grid-btn-${i}`;
-        
-        // Example: If it's question 1, mark as active initially
-        if (i === 1) btn.classList.add("active");
-
-        // Optional: you can add a click listener here to jump to a question
-        // btn.addEventListener("click", () => goToQuestion(i));
-        
-        gridContainer.appendChild(btn);
-      }
-
-      // Toggle the popover
       navTriggerBtn.addEventListener("click", (e) => {
-        e.stopPropagation(); // prevent closing instantly
+        e.stopPropagation();
         gridPopover.classList.toggle("show");
         navTriggerBtn.classList.toggle("open");
-        const isOpen = gridPopover.classList.contains("show");
-        navTriggerBtn.setAttribute("aria-expanded", isOpen);
+        navTriggerBtn.setAttribute("aria-expanded", gridPopover.classList.contains("show"));
       });
 
-      // Close the popover if clicked anywhere outside of it
       document.addEventListener("click", (e) => {
         if (!gridPopover.contains(e.target) && !navTriggerBtn.contains(e.target)) {
           gridPopover.classList.remove("show");
@@ -994,82 +313,51 @@
         }
       });
 
-
-      // -----------------------------------------------------------------
-      // THEME TOGGLE LOGIC
-      // -----------------------------------------------------------------
+      // ── Dark Mode ──────────────────────────────────────────────────
       const themeBtn = document.getElementById("theme-btn");
-      const body = document.body;
-
       if (localStorage.getItem("theme") === "dark") {
-        body.classList.add("dark-mode");
+        document.body.classList.add("dark-mode");
         themeBtn.textContent = "☀️";
       }
-
       themeBtn.addEventListener("click", () => {
-        body.classList.toggle("dark-mode");
-        if (body.classList.contains("dark-mode")) {
-          localStorage.setItem("theme", "dark");
-          themeBtn.textContent = "☀️";
-        } else {
-          localStorage.setItem("theme", "light");
-          themeBtn.textContent = "🌙";
-        }
+        document.body.classList.toggle("dark-mode");
+        const isDark = document.body.classList.contains("dark-mode");
+        localStorage.setItem("theme", isDark ? "dark" : "light");
+        themeBtn.textContent = isDark ? "☀️" : "🌙";
       });
 
-      // -----------------------------------------------------------------
-      // MODAL LOGIC (Formulas & Calculator)
-      // -----------------------------------------------------------------
+      // ── Formula Modal ──────────────────────────────────────────────
       document.addEventListener("DOMContentLoaded", () => {
-        const formulaBtn = document.getElementById("formula-btn");
-        const formulaModal = document.getElementById("formula-modal");
+        const formulaModal   = document.getElementById("formula-modal");
         const closeFormulaBtn = document.getElementById("close-formula-btn");
-
-        // Open Modal
-        formulaBtn.addEventListener("click", () => {
+        document.getElementById("formula-btn").addEventListener("click", () => {
           formulaModal.classList.add("active");
           formulaModal.setAttribute("aria-hidden", "false");
         });
-
-        const closeModal = () => {
+        const closeFormula = () => {
           formulaModal.classList.remove("active");
           formulaModal.setAttribute("aria-hidden", "true");
         };
-
-        closeFormulaBtn.addEventListener("click", closeModal);
-
-        formulaModal.addEventListener("click", (e) => {
-          if (e.target === formulaModal) closeModal();
-        });
-
+        closeFormulaBtn.addEventListener("click", closeFormula);
+        formulaModal.addEventListener("click", (e) => { if (e.target === formulaModal) closeFormula(); });
         document.addEventListener("keydown", (e) => {
-          if (e.key === "Escape" && formulaModal.classList.contains("active")) {
-            closeModal();
-          }
+          if (e.key === "Escape" && formulaModal.classList.contains("active")) closeFormula();
         });
       });
 
-      // Calculator Logic
-      const calcBtn = document.getElementById('calc-btn');
-      const calcModal = document.getElementById('calc-modal');
-      const closeCalcBtn = document.getElementById('close-calc-btn');
-
-      calcBtn.addEventListener('click', () => {
-        calcModal.classList.add('active');
-        calcModal.setAttribute('aria-hidden', 'false');
+      // ── Calculator Modal ───────────────────────────────────────────
+      const calcModal    = document.getElementById("calc-modal");
+      const closeCalcBtn = document.getElementById("close-calc-btn");
+      document.getElementById("calc-btn").addEventListener("click", () => {
+        calcModal.classList.add("active");
+        calcModal.setAttribute("aria-hidden", "false");
       });
-
-      const closeCalcModal = () => {
-        calcModal.classList.remove('active');
-        calcModal.setAttribute('aria-hidden', 'true');
+      const closeCalc = () => {
+        calcModal.classList.remove("active");
+        calcModal.setAttribute("aria-hidden", "true");
       };
-
-      closeCalcBtn.addEventListener('click', closeCalcModal);
-
-      calcModal.addEventListener('click', (e) => {
-        if (e.target === calcModal) closeCalcModal();
-      });
-
+      closeCalcBtn.addEventListener("click", closeCalc);
+      calcModal.addEventListener("click", (e) => { if (e.target === calcModal) closeCalc(); });
     </script>
   </body>
 </html>
