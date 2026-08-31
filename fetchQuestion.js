@@ -46,6 +46,13 @@ function startTimer(endTime) {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
+function getProxiedImageUrl(originalUrl) {
+  if (!originalUrl) return '';
+  const blockedDomain = 'qyzsymedekmekgosykik.supabase.co';
+  const proxyDomain = 'mibyte.site';
+  return originalUrl.replace(blockedDomain, proxyDomain);
+}
+
 function decodeEntities(str) {
   if (!str) return '';
   const txt = document.createElement('textarea');
@@ -226,7 +233,7 @@ function renderCurrentQuestion() {
 
   const qImg = document.getElementById('question-image');
   if (current.image_url && current.image_url.trim() !== '') {
-    qImg.src = current.image_url;
+    qImg.src = getProxiedImageUrl(current.image_url);
     qImg.style.display = 'block';
   } else {
     qImg.src = '';
@@ -356,7 +363,7 @@ function renderReviewQuestion(index) {
 
   const revQImg = document.getElementById('review-question-image');
   if (q.image_url && q.image_url.trim() !== '') {
-    revQImg.src = q.image_url;
+    revQImg.src = getProxiedImageUrl(q.image_url);
     revQImg.style.display = 'block';
   } else {
     revQImg.src = '';
@@ -394,7 +401,7 @@ function renderReviewQuestion(index) {
   const hasImage = q.fb_image && q.fb_image.trim() !== '';
 
   expBox.textContent = hasText ? decodeEntities(q.explanation) : hasImage ? '' : 'No explanation provided.';
-  if (hasImage) { expImg.src = q.fb_image; expImg.style.display = 'block'; }
+  if (hasImage) { expImg.src = getProxiedImageUrl(q.fb_image); expImg.style.display = 'block'; }
   else { expImg.src = ''; expImg.style.display = 'none'; }
 
   detailArea.scrollIntoView({ behavior: 'smooth' });
