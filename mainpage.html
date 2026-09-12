@@ -378,6 +378,162 @@
 
     .start-btn:hover { background: var(--blue-hover); }
 
+    .unlock-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: grid;
+      padding: 1.5rem;
+      place-items: center;
+      background: rgba(15, 23, 42, 0.55);
+    }
+
+    .unlock-modal[hidden] {
+      display: none;
+    }
+
+    .unlock-modal__dialog {
+      position: relative;
+      width: min(100%, 620px);
+      padding: 2.25rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+      font-family: "Myanmar Text", "Noto Sans Myanmar", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .unlock-modal__close {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      display: grid;
+      width: 2.25rem;
+      height: 2.25rem;
+      padding: 0;
+      place-items: center;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      border-radius: 50%;
+      font-size: 1.75rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .unlock-modal__title {
+      padding-right: 2.5rem;
+      margin-bottom: 1rem;
+      color: var(--text);
+      font-size: clamp(1.45rem, 4vw, 1.9rem);
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .unlock-modal__description {
+      margin-bottom: 1.35rem;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.55;
+    }
+
+    .unlock-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-top: 1.2rem;
+    }
+
+    .unlock-step__number {
+      display: grid;
+      flex: 0 0 auto;
+      width: 2.25rem;
+      height: 2.25rem;
+      place-items: center;
+      color: #fff;
+      background: #2f65ea;
+      border-radius: 50%;
+      font-weight: 800;
+    }
+
+    .unlock-step__content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .unlock-step__text {
+      margin: 0.15rem 0 0.7rem;
+      color: var(--text);
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+
+    .telegram-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
+      width: 100%;
+      min-height: 3.6rem;
+      padding: 0.75rem 1rem;
+      color: #fff;
+      background: #28a7df;
+      border-radius: 10px;
+      font-weight: 700;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .telegram-button:hover { background: #1b96cc; }
+
+    .telegram-button svg {
+      width: 1.25rem;
+      height: 1.25rem;
+      flex: 0 0 auto;
+      fill: currentColor;
+    }
+
+    .unlock-code-row {
+      display: flex;
+      gap: 0.65rem;
+    }
+
+    .unlock-code-row input {
+      min-width: 0;
+      flex: 1;
+      padding: 0.85rem 0.95rem;
+      color: var(--text);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      font: inherit;
+    }
+
+    .unlock-code-row input:focus {
+      border-color: var(--blue);
+      outline: 2px solid color-mix(in srgb, var(--blue) 25%, transparent);
+    }
+
+    .unlock-code-row button {
+      padding: 0.75rem 1rem;
+      color: #fff;
+      background: #2f65ea;
+      border: 0;
+      border-radius: 9px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .unlock-code-row button:hover { background: #2557d4; }
+
+    .unlock-modal__close:hover,
+    .unlock-modal__close:focus-visible {
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+    }
+
     footer {
       text-align: center;
       padding: 1.25rem;
@@ -406,6 +562,11 @@
       .card-header { padding: 1.5rem; }
       .card-body { padding: 1.5rem; }
       .card-header h1 { font-size: 1.3rem; }
+      .unlock-modal { padding: 1rem; }
+      .unlock-modal__dialog { padding: 1.75rem 1.25rem; }
+      .unlock-step { gap: 0.75rem; }
+      .unlock-code-row { flex-direction: column; }
+      .unlock-code-row button { min-height: 3rem; }
     }
 
   </style>
@@ -565,6 +726,54 @@
     If you encounter any bugs or issues, please contact the developer via the <a href="#">Contact</a> menu.
   </footer>
 
+<div class="unlock-modal" id="unlock-modal" role="dialog" aria-modal="true" aria-labelledby="unlock-modal-title" hidden>
+    <div class="unlock-modal__dialog">
+      <button class="unlock-modal__close" id="unlock-modal-close" type="button" aria-label="Close">&times;</button>
+
+      <!-- VIEW 1: DEFAULT CONTENT -->
+      <div id="unlock-default-content">
+        <h2 class="unlock-modal__title" id="unlock-modal-title">သင်္ချာ မေးခွန်းလွှာ လော့ခ်ဖွင့်ရန်</h2>
+        <p class="unlock-modal__description">မေးခွန်း 600 ကျော်နှင့် အချိန်ပြည့်လေ့ကျင့်မှုများကို အကန့်အသတ်မရှိ လေ့ကျင့်နိုင်ပါသည်။</p>
+
+        <div class="unlock-step">
+          <div class="unlock-step__number">1</div>
+          <div class="unlock-step__content">
+            <p class="unlock-step__text">အောက်ပါ Telegram Bot မှ 3,000 ကျပ် ပေးသွင်းပြီး Activation Code ရယူပါ။</p>
+            <a class="telegram-button" id="telegram-purchase-link" href="https://t.me/AuxiliusBot" aria-label="Open AuxiliusBot on Telegram">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M21.7 3.3a1.5 1.5 0 0 0-1.55-.25L2.4 9.9a1.5 1.5 0 0 0 .09 2.82l4.44 1.49 1.52 4.47a1.5 1.5 0 0 0 2.65.31l2.53-3.46 3.7 2.72a1.5 1.5 0 0 0 2.35-.88l2.1-12.58a1.5 1.5 0 0 0-.08-.79ZM8.2 13.38l8.82-5.3-6.95 6.71-.27 1.86-.95-2.78-.65-.22Z"/></svg>
+              Telegram Bot သို့ သွားရောက်ပေးချေပါ
+            </a>
+          </div>
+        </div>
+
+        <div class="unlock-step">
+          <div class="unlock-step__number">2</div>
+          <div class="unlock-step__content">
+            <p class="unlock-step__text">ရရှိလာသော Code ကို အောက်တွင် ထည့်သွင်းပါ။</p>
+            <div class="unlock-code-row">
+              <input id="math-activation-code" type="text" placeholder="ဥပမာ - MATH-12345" autocomplete="off" />
+              <button id="redeem-math-code" type="button">လော့ခ်ဖွင့်မည်</button>
+            </div>
+            <!-- ERROR MESSAGE (Hidden by default) -->
+            <p id="redeem-error-msg" style="color: #dc2626; font-size: 0.85rem; margin-top: 8px; display: none;"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: SUCCESS CONTENT (Hidden by default) -->
+      <div id="unlock-success-content" style="display: none; text-align: center; padding: 20px 0;">
+        <svg viewBox="0 0 24 24" style="width: 80px; height: 80px; fill: #4aa0f7; margin: 0 auto 16px;">
+           <circle cx="12" cy="12" r="12" />
+           <path d="M10 15.5l-3.5-3.5 1.4-1.4 2.1 2.1 5.6-5.6 1.4 1.4z" fill="#fff" />
+        </svg>
+        <h2 style="font-size: 24px; color: #1f2937; margin-bottom: 8px; font-weight: 600;">Verified!</h2>
+        <p style="color: #6b7280; margin-bottom: 24px; font-size: 14px;">You have successfully verified account.</p>
+        <button id="unlock-success-ok" style="background-color: #4aa0f7; color: white; padding: 10px 40px; border-radius: 12px; border: none; font-size: 16px; cursor: pointer; font-weight: 500; transition: opacity 0.2s;">Ok</button>
+      </div>
+
+    </div>
+  </div>
+  
   <!-- REQUIRED SCRIPTS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="mainpageFunction.js"></script>

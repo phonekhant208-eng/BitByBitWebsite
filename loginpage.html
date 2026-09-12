@@ -144,23 +144,23 @@
     <img src="images/university-student6136.logowik.com.webp" alt="Student Portal Logo" class="student-icon" />
 
     <h1>STUDENT PORTAL</h1>
-    <p class="subtitle">Enter your details to open your study room</p>
+    <p class="subtitle">Log in to your study room</p>
 
     <div class="input-group">
       <label for="email">EMAIL ADDRESS</label>
-      <input id="email" placeholder="name@domain.com" />
+      <input id="email" type="email" autocomplete="email" placeholder="name@domain.com" />
     </div>
 
     <div class="input-group">
-      <label for="gedCode">GED UNLOCK CODE</label>
-      <input id="gedCode" placeholder="Enter your valid code" />
+      <label for="password">PASSWORD</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Enter your password" />
     </div>
 
     <button onclick="login()">Enter Portal</button>
     <p id="msg"></p>
 
     <!-- Switch Page -->
-    <p class="switch-page">Need to activate your code? <a href="register.html">Register here</a></p>
+    <p class="switch-page">Need an account? <a href="register.html">Register here</a></p>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -172,12 +172,17 @@
 
     async function login() {
       const email = document.getElementById('email').value.trim().toLowerCase();
-      const code = document.getElementById('gedCode').value.trim();
+      const password = document.getElementById('password').value;
       const msg = document.getElementById('msg');
+
+      if (!email || !password) {
+        msg.textContent = 'Please enter your email and password.';
+        return;
+      }
 
       msg.textContent = 'Logging in...';
 
-      const { error } = await _supabase.auth.signInWithPassword({ email, password: code });
+      const { error } = await _supabase.auth.signInWithPassword({ email, password });
       if (error) { msg.textContent = 'Error: ' + error.message; return; }
 
       msg.textContent = 'Success! Redirecting...';
