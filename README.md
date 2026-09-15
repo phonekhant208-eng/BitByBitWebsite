@@ -4,7 +4,7 @@
 
 ---
 
-## 🌟 Key Features
+##  Key Features
 
 - **Interactive Math Quizzes:** Practice targeted GED math questions with real-time feedback and performance tracking.
 - **Automated Activation Code System:** Users purchase access and receive automated single-use activation keys.
@@ -14,7 +14,7 @@
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 | Layer | Technologies |
 | :--- | :--- |
@@ -25,7 +25,7 @@
 
 ---
 
-## 🔄 System Architecture & Data Flow
+##  System Architecture & Data Flow
 
 ```mermaid
 graph TD
