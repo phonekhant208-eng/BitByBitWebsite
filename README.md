@@ -1,4 +1,4 @@
-# 🧮 BitByBit — GED Math Quiz & Practice Platform
+#  BitByBit — GED Math Quiz & Practice Platform
 
 **BitByBit** is an interactive web platform designed to help students prepare for and excel in the **GED Mathematics exam**. It provides practice quizzes, automated access token distribution via Telegram, and seamless payment integration.
 
