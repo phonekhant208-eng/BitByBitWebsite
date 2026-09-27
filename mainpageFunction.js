@@ -293,50 +293,60 @@
     setupUIHandlers();
   });
 
+
+// --- Active Study Time Tracker ---
 // --- Active Study Time Tracker ---
 (function initTimeTracker() {
   let lastSyncTimestamp = Date.now();
   const SYNC_INTERVAL_MS = 30000; // Syncs every 30 seconds
-  const MAX_SINGLE_CHUNK_SECONDS = 1200; // 20-minute cap per sync to prevent overnight inflation
+  const MAX_SINGLE_CHUNK_SECONDS = 1200; // 20-minute cap
 
   async function syncTimeToSupabase() {
     const now = Date.now();
     let elapsedSeconds = Math.floor((now - lastSyncTimestamp) / 1000);
 
-    // Safety net: Cap at 20 mins max if tab was left open idle overnight
     if (elapsedSeconds > MAX_SINGLE_CHUNK_SECONDS) {
       elapsedSeconds = MAX_SINGLE_CHUNK_SECONDS;
     }
 
     if (elapsedSeconds <= 0) return;
 
-    // Advance the checkpoint timestamp
+    // Check if your dbClient is initialized
+    if (!dbClient) {
+      console.warn('⏱️ Time Tracker: dbClient not ready yet.');
+      return;
+    }
+
+    // Advance checkpoint
     lastSyncTimestamp = now;
 
-    // Automatically detect your initialized Supabase client instance
-    const client = window._supabase || window.supabaseClient || window.supabase;
-    if (!client) return;
+    const { data: { session } } = await dbClient.auth.getSession();
+    if (!session) {
+      console.warn('⏱️ Time Tracker: No active user session.');
+      return;
+    }
 
-    const { data: { session } } = await client.auth.getSession();
-    if (!session) return;
+    
 
-    // Call Supabase RPC to add elapsed seconds to user_access table
-    const { error } = await client.rpc('increment_study_time', {
+    // Call Supabase RPC using your dbClient
+    const { data, error } = await dbClient.rpc('increment_study_time', {
       user_id_param: session.user.id,
       additional_seconds: elapsedSeconds
     });
 
     if (error) {
-      console.error('Time sync error:', error.message);
-      // Revert checkpoint on network error so seconds are re-tried on next tick
+      console.error('❌ Time sync error:', error.message);
+      // Revert timestamp so elapsed time isn't lost on network error
       lastSyncTimestamp -= (elapsedSeconds * 1000);
+    } else {
+      
     }
   }
 
   // 1. Periodic background sync every 30 seconds
   setInterval(syncTimeToSupabase, SYNC_INTERVAL_MS);
 
-  // 2. Immediate sync when user closes the tab or switches apps
+  // 2. Sync on tab switch / exit
   window.addEventListener('beforeunload', syncTimeToSupabase);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
