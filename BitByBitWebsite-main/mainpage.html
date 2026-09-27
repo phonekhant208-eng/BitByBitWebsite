@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bit By Bit</title>
+  <link rel="icon" type="svg+xml" href="logo.svg">
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --blue: #0077b6;
+      --blue-hover: #005f92;
+      --green: #22c55e;
+      --red: #ef4444;
+    }
+
+    [data-theme="dark"] {
+      --bg: #0d1321;
+      --card: #1a2234;
+      --text: #f8fafc;
+      --muted: #8b9bb4;
+      --border: #2a3650;
+      --blue: #29b6f6;
+      --blue-hover: #039be5;
+    }
+
+    * {
+      margin: 0; padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── NAV ── */
+    nav {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 0 5%;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-logo-svg { 
+      width: 140px; 
+      height: auto; 
+      display: block; 
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+      list-style: none;
+    }
+
+    .nav-links a, .mobile-menu a {
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .nav-links a:hover, .mobile-menu a:hover { color: var(--blue); }
+
+    /* Hover for Desktop, Press & Hold for Mobile ── */
+    .has-tooltip {
+      position: relative;
+    }
+
+    .tooltip-content {
+      visibility: hidden;
+      opacity: 0;
+      position: absolute;
+      top: calc(100% + 15px);
+      right: -10px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 1.25rem;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      width: max-content;
+      max-width: 340px;
+      z-index: 999;
+      color: var(--text);
+      font-size: 0.85rem;
+      line-height: 1.5;
+      transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+      transform: translateY(-5px);
+      pointer-events: none; 
+      text-align: left;
+    }
+
+    .tooltip-content p { margin-bottom: 0.75rem; }
+    .tooltip-content p:last-child { margin-bottom: 0; }
+    .tooltip-content strong { color: var(--blue); font-weight: 700; }
+    
+    .tooltip-content ul {
+      padding-left: 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+    .tooltip-content ul li {
+      margin-bottom: 0.4rem;
+    }
+
+    /* Desktop Hover */
+    @media (hover: hover) {
+      .has-tooltip:hover .tooltip-content {
+        visibility: visible;
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Mobile Press & Hold */
+    @media (hover: none) {
+      .has-tooltip:active .tooltip-content {
+        visibility: visible;
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .theme-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .theme-btn:hover {
+      border-color: var(--muted);
+    }
+
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.6rem;
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .mobile-menu {
+      display: none;
+      flex-direction: column;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 5%;
+      gap: 1rem;
+    }
+
+    .mobile-menu.open { display: flex; }
+
+    .mobile-menu .has-tooltip .tooltip-content {
+      top: auto;
+      bottom: -10px; 
+      right: 0;
+      left: 0;
+      width: 100%;
+      max-width: none;
+      transform: translateY(10px);
+    }
+
+    @media (hover: none) {
+      .mobile-menu .has-tooltip:active .tooltip-content {
+        transform: translateY(0);
+      }
+    }
+
+    [data-theme="dark"] .nav-links a,
+    [data-theme="dark"] .mobile-menu a {
+      color: var(--text);
+    }
+
+    /* ── PAGE BODY ── */
+    .page {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 5%;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.07);
+      width: 100%;
+      max-width: 560px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: var(--blue);
+      padding: 2rem 2.5rem;
+      text-align: center;
+      color: #fff;
+    }
+
+    .card-header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .card-header p {
+      font-size: 0.9rem;
+      opacity: 0.85;
+    }
+
+    .stats-row {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stat-box {
+      flex: 1;
+      padding: 1.2rem;
+      text-align: center;
+      border-right: 1px solid var(--border);
+    }
+
+    .stat-box:last-child { border-right: none; }
+
+    .stat-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.3rem;
+    }
+
+    .stat-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--blue);
+    }
+
+    [data-theme="dark"] .stat-value {
+      color: var(--text);
+    }
+
+    .card-body {
+      padding: 2rem 2.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.75rem;
+    }
+
+    .section-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.6rem;
+    }
+
+    .acc-track {
+      width: 100%;
+      height: 12px;
+      border-radius: 6px;
+      background: var(--border);
+      display: flex;
+      overflow: hidden;
+      margin-bottom: 0.6rem;
+    }
+
+    .acc-green {
+      background: var(--green);
+      height: 100%;
+      transition: width 0.6s ease;
+    }
+
+    .acc-red {
+      background: var(--red);
+      height: 100%;
+      transition: width 0.6s ease;
+    }
+
+    .acc-legend {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+    }
+
+    .acc-legend span {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-weight: 600;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot.g { background: var(--green); }
+    .dot.r { background: var(--red); }
+
+    .correct-label { color: var(--green); }
+    .incorrect-label { color: var(--red); }
+
+    .prog-track {
+      width: 100%;
+      height: 10px;
+      border-radius: 5px;
+      background: var(--border);
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
+
+    .prog-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--blue);
+      border-radius: 5px;
+      transition: width 0.4s ease;
+    }
+
+    .prog-label {
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 600;
+      text-align: right;
+    }
+
+    .start-btn {
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      width: 100%;
+      padding: 1rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      border-radius: 10px;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      text-align: center;
+      text-decoration: none;
+      display: block;
+    }
+
+    .start-btn:hover { background: var(--blue-hover); }
+
+    .unlock-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: grid;
+      padding: 1.5rem;
+      place-items: center;
+      background: rgba(15, 23, 42, 0.55);
+    }
+
+    .unlock-modal[hidden] {
+      display: none;
+    }
+
+    .unlock-modal__dialog {
+      position: relative;
+      width: min(100%, 620px);
+      padding: 2.25rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+      font-family: "Myanmar Text", "Noto Sans Myanmar", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .unlock-modal__close {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      display: grid;
+      width: 2.25rem;
+      height: 2.25rem;
+      padding: 0;
+      place-items: center;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      border-radius: 50%;
+      font-size: 1.75rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .unlock-modal__title {
+      padding-right: 2.5rem;
+      margin-bottom: 1rem;
+      color: var(--text);
+      font-size: clamp(1.45rem, 4vw, 1.9rem);
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .unlock-modal__description {
+      margin-bottom: 1.35rem;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.55;
+    }
+
+    .unlock-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-top: 1.2rem;
+    }
+
+    .unlock-step__number {
+      display: grid;
+      flex: 0 0 auto;
+      width: 2.25rem;
+      height: 2.25rem;
+      place-items: center;
+      color: #fff;
+      background: #2f65ea;
+      border-radius: 50%;
+      font-weight: 800;
+    }
+
+    .unlock-step__content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .unlock-step__text {
+      margin: 0.15rem 0 0.7rem;
+      color: var(--text);
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+
+    .telegram-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
+      width: 100%;
+      min-height: 3.6rem;
+      padding: 0.75rem 1rem;
+      color: #fff;
+      background: #28a7df;
+      border-radius: 10px;
+      font-weight: 700;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .telegram-button:hover { background: #1b96cc; }
+
+    .telegram-button svg {
+      width: 1.25rem;
+      height: 1.25rem;
+      flex: 0 0 auto;
+      fill: currentColor;
+    }
+
+    .unlock-code-row {
+      display: flex;
+      gap: 0.65rem;
+    }
+
+    .unlock-code-row input {
+      min-width: 0;
+      flex: 1;
+      padding: 0.85rem 0.95rem;
+      color: var(--text);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      font: inherit;
+    }
+
+    .unlock-code-row input:focus {
+      border-color: var(--blue);
+      outline: 2px solid color-mix(in srgb, var(--blue) 25%, transparent);
+    }
+
+    .unlock-code-row button {
+      padding: 0.75rem 1rem;
+      color: #fff;
+      background: #2f65ea;
+      border: 0;
+      border-radius: 9px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .unlock-code-row button:hover { background: #2557d4; }
+
+    .unlock-modal__close:hover,
+    .unlock-modal__close:focus-visible {
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+    }
+
+    footer {
+      text-align: center;
+      padding: 1.25rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      background: var(--card);
+    }
+    
+    .logo-text {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-weight: 700;
+      font-size: 20px;
+      fill: var(--text, #0f172a);
+      letter-spacing: -0.5px;
+    }
+    .logo-highlight {
+      fill: #0077b6;
+    }
+    
+    footer a { color: var(--blue); text-decoration: none; font-weight: 600; }
+
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .hamburger { display: block; }
+      .card-header { padding: 1.5rem; }
+      .card-body { padding: 1.5rem; }
+      .card-header h1 { font-size: 1.3rem; }
+      .unlock-modal { padding: 1rem; }
+      .unlock-modal__dialog { padding: 1.75rem 1.25rem; }
+      .unlock-step { gap: 0.75rem; }
+      .unlock-code-row { flex-direction: column; }
+      .unlock-code-row button { min-height: 3rem; }
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav>
+    <svg class="nav-logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 50">
+      
+      <g transform="translate(5, 12)">
+        <rect x="0" y="16" width="6" height="10" rx="2" fill="#0077b6" opacity="0.4"/>
+        <rect x="9" y="8" width="6" height="18" rx="2" fill="#0077b6" opacity="0.7"/>
+        <rect x="18" y="0" width="6" height="26" rx="2" fill="#0077b6"/>
+      </g>
+      
+      <text x="38" y="31" class="logo-text">Bit<tspan class="logo-highlight">By</tspan>Bit</text>
+    </svg>
+
+    <div class="nav-right">
+      <button class="theme-btn" id="theme-btn">
+        <span>🌓</span> Theme
+      </button>
+      
+      <ul class="nav-links">
+        
+        <!-- About -->
+        <li class="has-tooltip">
+          <a href="#">About</a>
+          <div class="tooltip-content">
+            <p><strong>Why I Built Bit By Bit</strong></p>
+            <p>Standard GED prep courses are too expensive and don't actually prepare you for the pressure of test day. As a young developer, I knew there was a way to build a better, cheaper tool for students.</p>
+            <p>Bit By Bit is a custom-built GED Math simulator designed to test you exactly like the real exam.</p>
+            <ul>
+              <li><strong>115 Minutes. 40 Questions:</strong> Practice under the exact same time constraints as the real test.</li>
+              <li><strong>1,000+ Question Pool:</strong> Never run out of fresh material to study.</li>
+              <li><strong>Affordable Access:</strong> Education shouldn't be gatekept by high prices. This platform is priced to be accessible to anyone.</li>
+            </ul>
+            <p>This site is currently dedicated 100% to GED Math. As the community of students using this platform grows, I will be rolling out dedicated simulators for the rest of the GED subjects.</p>
+          </div>
+        </li>
+
+        <!-- Desktop Resources Dropdown -->
+        <li class="has-tooltip">
+          <a href="#">Resources</a>
+          <div class="tooltip-content">
+            <p>Collection of questions from online, open-source ebooks, and open-source databases.</p>
+          </div>
+        </li>
+
+        <!-- Desktop Contact Dropdown -->
+        <li class="has-tooltip">
+          <a href="#">Contact</a>
+          <div class="tooltip-content">
+            <p><strong>Telegram:</strong> @auxilius_a2</p>
+            <p><strong>TikTok:</strong> Bit By Bit</p>
+          </div>
+        </li>
+
+        <li><a href="#" id="logout-btn">Log Out</a></li>
+      </ul>
+      <button class="hamburger" id="hamburger">☰</button>
+    </div>
+  </nav>
+
+  <!-- Mobile Menu -->
+  <div class="mobile-menu" id="mobile-menu">
+    <!-- Mobile About -->
+    <div class="has-tooltip">
+      <a href="#">About</a>
+      <div class="tooltip-content">
+        <p><strong>Why I Built Bit By Bit</strong></p>
+        <p>Standard GED prep courses are too expensive and don't actually prepare you for the pressure of test day. As a young developer, I knew there was a way to build a better, cheaper tool for students.</p>
+        <p>Bit By Bit is a custom-built GED Math simulator designed to test you exactly like the real exam.</p>
+        <ul>
+          <li><strong>115 Minutes. 40 Questions:</strong> Practice under the exact same time constraints as the real test.</li>
+          <li><strong>1,000+ Question Pool:</strong> Never run out of fresh material to study.</li>
+          <li><strong>Affordable Access:</strong> Education shouldn't be gatekept by high prices. This platform is priced to be accessible to anyone.</li>
+        </ul>
+        <p>This site is currently dedicated 100% to GED Math. As the community of students using this platform grows, I will be rolling out dedicated simulators for the rest of the GED subjects.</p>
+      </div>
+    </div>
+    
+    <!-- Mobile Resources -->
+    <div class="has-tooltip">
+      <a href="#">Resources</a>
+      <div class="tooltip-content">
+        <p>Collection of questions from online, open-source ebooks, and open-source databases.</p>
+      </div>
+    </div>
+
+    <!-- Mobile Contact -->
+    <div class="has-tooltip">
+      <a href="#">Contact</a>
+      <div class="tooltip-content">
+        <p><strong>Telegram:</strong> auxilius_a2</p>
+        <p><strong>TikTok:</strong> Bit By Bit</p>
+      </div>
+    </div>
+
+    <a href="#" id="logout-mobile">Log Out</a>
+  </div>
+
+  <!-- Page -->
+  <div class="page">
+    <div class="card">
+      <div class="card-header">
+        <h1>Start Here!</h1>
+        <p>Bit By Bit</p>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-label">Total Pool</div>
+          <div class="stat-value" id="stat-total-q">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Avg. Score</div>
+          <div class="stat-value" id="stat-avg-score">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Time Limit</div>
+          <div class="stat-value">1h 55m</div>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <!-- Accuracy -->
+        <div>
+          <div class="section-label">Overall Accuracy</div>
+          <div class="acc-track">
+            <div class="acc-green" id="acc-green" style="width:0%"></div>
+            <div class="acc-red" id="acc-red" style="width:0%"></div>
+          </div>
+          <div class="acc-legend">
+            <span class="correct-label"><div class="dot g"></div> Correct: <span id="pct-correct">0%</span></span>
+            <span class="incorrect-label"><div class="dot r"></div> Incorrect: <span id="pct-incorrect">0%</span></span>
+          </div>
+        </div>
+
+        <!-- Current Progress -->
+        <div>
+          <div class="section-label">Current Progress</div>
+          <div class="prog-track">
+            <div class="prog-fill" id="prog-fill"></div>
+          </div>
+          <div class="prog-label" id="prog-label">0 / 0 Questions Answered</div>
+        </div>
+
+        <!-- Start Button -->
+        <a href="testpage.html" class="start-btn" id="start-btn">Start Test</a>
+      </div>
+    </div>
+  </div>
+  
+  <footer>
+    If you encounter any bugs or issues, please contact the developer via the <a href="#">Contact</a> menu.
+  </footer>
+
+<div class="unlock-modal" id="unlock-modal" role="dialog" aria-modal="true" aria-labelledby="unlock-modal-title" hidden>
+    <div class="unlock-modal__dialog">
+      <button class="unlock-modal__close" id="unlock-modal-close" type="button" aria-label="Close">&times;</button>
+
+      <!-- VIEW 1: DEFAULT CONTENT -->
+      <div id="unlock-default-content">
+        <h2 class="unlock-modal__title" id="unlock-modal-title">သင်္ချာ မေးခွန်းလွှာ လော့ခ်ဖွင့်ရန်</h2>
+        <p class="unlock-modal__description">မေးခွန်း 600 ကျော်နှင့် အချိန်ပြည့်လေ့ကျင့်မှုများကို အကန့်အသတ်မရှိ လေ့ကျင့်နိုင်ပါသည်။</p>
+
+        <div class="unlock-step">
+          <div class="unlock-step__number">1</div>
+          <div class="unlock-step__content">
+            <p class="unlock-step__text">အောက်ပါ Telegram Bot မှ 3,000 ကျပ် ပေးသွင်းပြီး Activation Code ရယူပါ။</p>
+            <a class="telegram-button" id="telegram-purchase-link" href="https://t.me/AuxiliusBot" aria-label="Open AuxiliusBot on Telegram">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M21.7 3.3a1.5 1.5 0 0 0-1.55-.25L2.4 9.9a1.5 1.5 0 0 0 .09 2.82l4.44 1.49 1.52 4.47a1.5 1.5 0 0 0 2.65.31l2.53-3.46 3.7 2.72a1.5 1.5 0 0 0 2.35-.88l2.1-12.58a1.5 1.5 0 0 0-.08-.79ZM8.2 13.38l8.82-5.3-6.95 6.71-.27 1.86-.95-2.78-.65-.22Z"/></svg>
+              Telegram Bot သို့ သွားရောက်ပေးချေပါ
+            </a>
+          </div>
+        </div>
+
+        <div class="unlock-step">
+          <div class="unlock-step__number">2</div>
+          <div class="unlock-step__content">
+            <p class="unlock-step__text">ရရှိလာသော Code ကို အောက်တွင် ထည့်သွင်းပါ။</p>
+            <div class="unlock-code-row">
+              <input id="math-activation-code" type="text" placeholder="ဥပမာ - MATH-12345" autocomplete="off" />
+              <button id="redeem-math-code" type="button">လော့ခ်ဖွင့်မည်</button>
+            </div>
+            <!-- ERROR MESSAGE (Hidden by default) -->
+            <p id="redeem-error-msg" style="color: #dc2626; font-size: 0.85rem; margin-top: 8px; display: none;"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: SUCCESS CONTENT (Hidden by default) -->
+      <div id="unlock-success-content" style="display: none; text-align: center; padding: 20px 0;">
+        <svg viewBox="0 0 24 24" style="width: 80px; height: 80px; fill: #4aa0f7; margin: 0 auto 16px;">
+           <circle cx="12" cy="12" r="12" />
+           <path d="M10 15.5l-3.5-3.5 1.4-1.4 2.1 2.1 5.6-5.6 1.4 1.4z" fill="#fff" />
+        </svg>
+        <h2 style="font-size: 24px; color: #1f2937; margin-bottom: 8px; font-weight: 600;">Verified!</h2>
+        <p style="color: #6b7280; margin-bottom: 24px; font-size: 14px;">You have successfully verified account.</p>
+        <button id="unlock-success-ok" style="background-color: #4aa0f7; color: white; padding: 10px 40px; border-radius: 12px; border: none; font-size: 16px; cursor: pointer; font-weight: 500; transition: opacity 0.2s;">Ok</button>
+      </div>
+
+    </div>
+  </div>
+  
+  <!-- REQUIRED SCRIPTS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="mainpageFunction.js"></script>
+
+</body>
+</html>

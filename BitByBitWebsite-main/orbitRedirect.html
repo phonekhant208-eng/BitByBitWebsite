@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Partner Portal Redirect</title>
+  <!-- 1. Include Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body style="font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f4f4f9;">
+
+  <!-- Status message box -->
+  <div style="text-align: center; padding: 2rem; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+    <h2 id="msg">Authenticating via partner portal...</h2>
+    <p style="color: #666;">Please wait while we set up your study session.</p>
+  </div>
+
+  <script>
+    // 2. Initialize Supabase (Replace with your actual Supabase URL and Anon Key)
+    const SUPABASE_URL = 'https://mibyte.site';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function handlePartnerSSO() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const orbitId = urlParams.get('orbit_id');
+      const msg = document.getElementById('msg');
+      
+      // If there is no orbit_id, redirect them to normal login page
+      if (!orbitId) {
+        msg.textContent = 'No partner ID found. Redirecting to login...';
+        setTimeout(() => { window.location.href = 'loginpage.html'; }, 1500);
+        return;
+      }
+
+      msg.textContent = 'Authenticating via partner portal...';
+
+      // Create background dummy credentials
+      const dummyEmail = `orbit_${orbitId.toLowerCase()}@partner.internal`;
+      const dummyPassword = `OrbitPass_${orbitId}_2026!`;
+
+      // 1. Try logging in first (returning partner user)
+      let { error: loginError } = await _supabase.auth.signInWithPassword({
+        email: dummyEmail,
+        password: dummyPassword,
+      });
+
+      // 2. If login fails, create account (new partner user)
+      if (loginError) {
+        msg.textContent = 'Creating partner account...';
+        
+        const { error: signUpError } = await _supabase.auth.signUp({
+          email: dummyEmail,
+          password: dummyPassword
+        });
+
+        if (signUpError) {
+          msg.textContent = 'SSO Error: ' + signUpError.message;
+          return;
+        }
+
+        // Force login after sign up to lock in the auth session token
+        await _supabase.auth.signInWithPassword({
+          email: dummyEmail,
+          password: dummyPassword
+        });
+      }
+
+      // 3. Redirect to dashboard
+      msg.textContent = 'Success! Redirecting to dashboard...';
+      setTimeout(() => {
+        window.location.href = 'mainpage.html';
+      }, 1000);
+    }
+
+    document.addEventListener('DOMContentLoaded', handlePartnerSSO);
+  </script>
+</body>
+</html>
