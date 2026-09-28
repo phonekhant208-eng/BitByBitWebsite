@@ -283,6 +283,9 @@
   const MAX_SINGLE_CHUNK_SECONDS = 1200; // 20-minute cap
 
   async function syncTimeToSupabase() {
+    // 🛑 CRITICAL FIX: Stop tracking if the tab is minimized or hidden
+    if (document.hidden) return;
+
     const now = Date.now();
     let elapsedSeconds = Math.floor((now - lastSyncTimestamp) / 1000);
 
@@ -292,7 +295,6 @@
 
     if (elapsedSeconds <= 0) return;
 
-    // Check if your dbClient is initialized
     if (!dbClient) {
       console.warn('⏱️ Time Tracker: dbClient not ready yet.');
       return;
@@ -307,20 +309,15 @@
       return;
     }
 
-    
-
-    // Call Supabase RPC using your dbClient
-    const { data, error } = await dbClient.rpc('increment_study_time', {
+    // Call Supabase RPC
+    const { error } = await dbClient.rpc('increment_study_time', {
       user_id_param: session.user.id,
       additional_seconds: elapsedSeconds
     });
 
     if (error) {
       console.error('❌ Time sync error:', error.message);
-      // Revert timestamp so elapsed time isn't lost on network error
       lastSyncTimestamp -= (elapsedSeconds * 1000);
-    } else {
-      
     }
   }
 
@@ -329,9 +326,14 @@
 
   // 2. Sync on tab switch / exit
   window.addEventListener('beforeunload', syncTimeToSupabase);
+  
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
+    if (document.hidden) {
+      // User minimized the tab -> Sync whatever seconds are left, then pause
       syncTimeToSupabase();
+    } else {
+      // 🛑 CRITICAL FIX: User came back! Reset the clock so background time is destroyed
+      lastSyncTimestamp = Date.now();
     }
   });
 })();
