@@ -276,66 +276,7 @@
 
 
 // --- Active Study Time Tracker ---
-// --- Active Study Time Tracker ---
-(function initTimeTracker() {
-  let lastSyncTimestamp = Date.now();
-  const SYNC_INTERVAL_MS = 30000; // Syncs every 30 seconds
-  const MAX_SINGLE_CHUNK_SECONDS = 1200; // 20-minute cap
 
-  async function syncTimeToSupabase() {
-    // 🛑 CRITICAL FIX: Stop tracking if the tab is minimized or hidden
-    if (document.hidden) return;
 
-    const now = Date.now();
-    let elapsedSeconds = Math.floor((now - lastSyncTimestamp) / 1000);
-
-    if (elapsedSeconds > MAX_SINGLE_CHUNK_SECONDS) {
-      elapsedSeconds = MAX_SINGLE_CHUNK_SECONDS;
-    }
-
-    if (elapsedSeconds <= 0) return;
-
-    if (!dbClient) {
-      console.warn('⏱️ Time Tracker: dbClient not ready yet.');
-      return;
-    }
-
-    // Advance checkpoint
-    lastSyncTimestamp = now;
-
-    const { data: { session } } = await dbClient.auth.getSession();
-    if (!session) {
-      console.warn('⏱️ Time Tracker: No active user session.');
-      return;
-    }
-
-    // Call Supabase RPC
-    const { error } = await dbClient.rpc('increment_study_time', {
-      user_id_param: session.user.id,
-      additional_seconds: elapsedSeconds
-    });
-
-    if (error) {
-      console.error('❌ Time sync error:', error.message);
-      lastSyncTimestamp -= (elapsedSeconds * 1000);
-    }
-  }
-
-  // 1. Periodic background sync every 30 seconds
-  setInterval(syncTimeToSupabase, SYNC_INTERVAL_MS);
-
-  // 2. Sync on tab switch / exit
-  window.addEventListener('beforeunload', syncTimeToSupabase);
-  
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      // User minimized the tab -> Sync whatever seconds are left, then pause
-      syncTimeToSupabase();
-    } else {
-      // 🛑 CRITICAL FIX: User came back! Reset the clock so background time is destroyed
-      lastSyncTimestamp = Date.now();
-    }
-  });
-})();
 
 })();
