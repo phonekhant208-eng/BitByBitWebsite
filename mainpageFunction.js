@@ -14,14 +14,14 @@
 
   
   // AUTHENTICATION GUARD
+  // This keeps direct URL access protected, while the paid access gate remains frozen.
   async function checkAuth() {
     if (!dbClient) return;
-    
-  
+
     const { data: { user } } = await dbClient.auth.getUser();
     if (!user) {
       window.location.href = '/register.html';
-      return; 
+      return;
     }
   }
 
@@ -135,72 +135,56 @@
     const successContent = document.getElementById('unlock-success-content');
     const successOkBtn = document.getElementById('unlock-success-ok');
 
-    // Remove error text automatically when the user starts typing
-    redeemInput.addEventListener('input', () => {
-      redeemErrorMsg.style.display = 'none';
-    });
-
-    redeemSubmitBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const code = redeemInput.value.trim();
-      
-      // Hide any previous errors before checking again
-      redeemErrorMsg.style.display = 'none';
-      
-      if (!code) {
-        redeemErrorMsg.textContent = "Invalid code please enter the code provided from telegram bot";
-        redeemErrorMsg.style.display = 'block';
-        return;
-      }
-
-      // Save original text and show loading state
-      const originalText = redeemSubmitBtn.textContent;
-      redeemSubmitBtn.textContent = "Verifying..."; 
-      redeemSubmitBtn.disabled = true;
-
-      // Call Supabase RPC
-      const { data, error } = await dbClient.rpc('redeem_access_code', { 
-        entered_code: code 
-      });
-
-      // Restore button state
-      redeemSubmitBtn.textContent = originalText;
-      redeemSubmitBtn.disabled = false;
-
-      if (error) {
-        console.error("RPC Error:", error);
-        redeemErrorMsg.textContent = "Network error verifying code.";
-        redeemErrorMsg.style.display = 'block';
-        return;
-      }
-
-      if (data.success) {
-        // Transition to Success View
-        defaultContent.style.display = 'none';
-        successContent.style.display = 'block';
-        
-        // Hide the top-right close button so they have to click 'Ok'
-        document.getElementById('unlock-modal-close').style.display = 'none';
-      } else {
-        // Show RPC error (e.g., "This code has already been used.") under input
-        redeemErrorMsg.textContent = data.message; 
-        redeemErrorMsg.style.display = 'block';
-      }
-    });
-
-    // Handle the final redirect when "Ok" is clicked on the success screen
-    successOkBtn.addEventListener('click', () => {
-      setUnlockModalOpen(false);
-    });
-
-    function setUnlockModalOpen(isOpen) {
-      unlockModal.hidden = !isOpen;
-      if (isOpen) {
-        closeUnlockModal.focus();
-      } else {
-        startButton.focus();
-      }
-    }
+    // FREE MODE: keep the old unlock UI logic in comments so it can be re-enabled later.
+    // The code below is frozen to prevent paid gating for regular users.
+    //
+    // redeemInput.addEventListener('input', () => {
+    //   redeemErrorMsg.style.display = 'none';
+    // });
+    //
+    // redeemSubmitBtn.addEventListener('click', async (e) => {
+    //   e.preventDefault();
+    //   const code = redeemInput.value.trim();
+    //   redeemErrorMsg.style.display = 'none';
+    //   if (!code) {
+    //     redeemErrorMsg.textContent = "Invalid code please enter the code provided from telegram bot";
+    //     redeemErrorMsg.style.display = 'block';
+    //     return;
+    //   }
+    //   const originalText = redeemSubmitBtn.textContent;
+    //   redeemSubmitBtn.textContent = "Verifying..."; 
+    //   redeemSubmitBtn.disabled = true;
+    //   const { data, error } = await dbClient.rpc('redeem_access_code', { entered_code: code });
+    //   redeemSubmitBtn.textContent = originalText;
+    //   redeemSubmitBtn.disabled = false;
+    //   if (error) {
+    //     console.error("RPC Error:", error);
+    //     redeemErrorMsg.textContent = "Network error verifying code.";
+    //     redeemErrorMsg.style.display = 'block';
+    //     return;
+    //   }
+    //   if (data.success) {
+    //     defaultContent.style.display = 'none';
+    //     successContent.style.display = 'block';
+    //     document.getElementById('unlock-modal-close').style.display = 'none';
+    //   } else {
+    //     redeemErrorMsg.textContent = data.message; 
+    //     redeemErrorMsg.style.display = 'block';
+    //   }
+    // });
+    //
+    // successOkBtn.addEventListener('click', () => {
+    //   setUnlockModalOpen(false);
+    // });
+    //
+    // function setUnlockModalOpen(isOpen) {
+    //   unlockModal.hidden = !isOpen;
+    //   if (isOpen) {
+    //     closeUnlockModal.focus();
+    //   } else {
+    //     startButton.focus();
+    //   }
+    // }
 
    async function startMathTest(event) {
   event.preventDefault();
@@ -217,48 +201,45 @@
     return;
   }
 
-  // 2. Check Paid Access Status
-  const { data: access, error: accessError } = await dbClient
-    .from('user_access')
-    .select('math_unlocked')
-    .eq('user_id', user.id)
-    .maybeSingle();
+  // FREE MODE: paying checks are frozen so unpaid users can still enter the test.
+  // Original paid-access gate kept below for reference and to be re-enabled later.
+  // const { data: access, error: accessError } = await dbClient
+  //   .from('user_access')
+  //   .select('math_unlocked')
+  //   .eq('user_id', user.id)
+  //   .maybeSingle();
+  //
+  // if (accessError) {
+  //   console.error('Unable to check Math access:', accessError);
+  //   setUnlockModalOpen(true);
+  //   return;
+  // }
+  //
+  // if (access?.math_unlocked === true) {
+  //   window.location.href = startButton.href;
+  //   return;
+  // }
+  //
+  // const { count: totalAttempted, error: progressError } = await dbClient
+  //   .from('user_progress')
+  //   .select('*', { count: 'exact', head: true })
+  //   .eq('user_id', user.id);
+  //
+  // if (progressError) {
+  //   console.error('Unable to verify user progress count:', progressError);
+  //   setUnlockModalOpen(true);
+  //   return;
+  // }
+  //
+  // const answeredCount = totalAttempted || 0;
+  // if (answeredCount < 80) {
+  //   window.location.href = startButton.href;
+  //   return;
+  // }
+  //
+  // setUnlockModalOpen(true);
 
-  if (accessError) {
-    console.error('Unable to check Math access:', accessError);
-    setUnlockModalOpen(true);
-    return;
-  }
-
-  // Rule A: If already paid, give unlimited access
-  if (access?.math_unlocked === true) {
-    window.location.href = startButton.href;
-    return;
-  }
-
-  // 3. Rule B: Check Free Tier Usage (Count answered questions)
-  const { count: totalAttempted, error: progressError } = await dbClient
-    .from('user_progress')
-    .select('*', { count: 'exact', head: true }) // head: true only fetches the count integer (super fast)
-    .eq('user_id', user.id);
-
-  if (progressError) {
-    console.error('Unable to verify user progress count:', progressError);
-    setUnlockModalOpen(true);
-    return;
-  }
-
-  const answeredCount = totalAttempted || 0;
-
-  // Rule C: Allow access if under the 80-question limit
-  if (answeredCount < 80) {
-    window.location.href = startButton.href;
-    return;
-  }
-
-
-  // Rule D: If 80 or more questions answered and NOT unlocked -> Show Pay Modal
-  setUnlockModalOpen(true);
+  window.location.href = startButton.href;
 }
 
     startButton.addEventListener('click', startMathTest);
