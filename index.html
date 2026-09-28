@@ -1,7 +1,39 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv="refresh" content="0; url='loginpage.html'" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BitByBit Study Platform</title>
+
+  <!-- Load Supabase JS Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    (async function checkAuthAndRedirect() {
+      // 1. Initialize Supabase Client
+      const SUPABASE_URL = "https://mibyte.site"; 
+      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU"; 
+
+      if (window.supabase) {
+        const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // 2. Read existing auth session from localStorage
+        const { data: { session } } = await client.auth.getSession();
+
+        // 3. Redirect based on login status
+        if (session) {
+          // User is logged in -> Go straight to main app
+          window.location.replace('mainpage.html');
+        } else {
+          // User is NOT logged in -> Send to register page
+          window.location.replace('register.html');
+        }
+      } else {
+        // Fallback if Supabase CDN fails to load
+        window.location.replace('register.html');
+      }
+    })();
+  </script>
 </head>
 <body>
 </body>
