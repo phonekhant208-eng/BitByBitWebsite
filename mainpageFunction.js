@@ -14,14 +14,14 @@
 
   
   // AUTHENTICATION GUARD
+  // This keeps direct URL access protected, while the paid access gate remains frozen.
   async function checkAuth() {
     if (!dbClient) return;
-    
-  
+
     const { data: { user } } = await dbClient.auth.getUser();
     if (!user) {
       window.location.href = '/register.html';
-      return; 
+      return;
     }
   }
 
