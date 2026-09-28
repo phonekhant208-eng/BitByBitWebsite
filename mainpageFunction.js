@@ -275,22 +275,16 @@
   });
 
 
-
+// --- Active Study Time Tracker ---
 // --- Active Study Time Tracker ---
 (function initTimeTracker() {
   let lastSyncTimestamp = Date.now();
   const SYNC_INTERVAL_MS = 30000; // Syncs every 30 seconds
-  const MAX_SINGLE_CHUNK_SECONDS = 1200; // 20-minute cap for waking up from sleep
+  const MAX_SINGLE_CHUNK_SECONDS = 1200; // 20-minute cap
 
   async function syncTimeToSupabase() {
-    //  STOP: Don't track time while tab is hidden
-    if (document.hidden) return;
-
     const now = Date.now();
     let elapsedSeconds = Math.floor((now - lastSyncTimestamp) / 1000);
-
-    // Advance checkpoint
-    lastSyncTimestamp = now;
 
     if (elapsedSeconds > MAX_SINGLE_CHUNK_SECONDS) {
       elapsedSeconds = MAX_SINGLE_CHUNK_SECONDS;
@@ -298,10 +292,14 @@
 
     if (elapsedSeconds <= 0) return;
 
+    // Check if your dbClient is initialized
     if (!dbClient) {
       console.warn('⏱️ Time Tracker: dbClient not ready yet.');
       return;
     }
+
+    // Advance checkpoint
+    lastSyncTimestamp = now;
 
     const { data: { session } } = await dbClient.auth.getSession();
     if (!session) {
@@ -309,8 +307,10 @@
       return;
     }
 
-    // Call Supabase RPC
-    const { error } = await dbClient.rpc('increment_study_time', {
+    
+
+    // Call Supabase RPC using your dbClient
+    const { data, error } = await dbClient.rpc('increment_study_time', {
       user_id_param: session.user.id,
       additional_seconds: elapsedSeconds
     });
@@ -319,25 +319,21 @@
       console.error('❌ Time sync error:', error.message);
       // Revert timestamp so elapsed time isn't lost on network error
       lastSyncTimestamp -= (elapsedSeconds * 1000);
+    } else {
+      
     }
   }
 
-  // 1. Periodic background sync (will return early if tab is hidden)
+  // 1. Periodic background sync every 30 seconds
   setInterval(syncTimeToSupabase, SYNC_INTERVAL_MS);
 
-  // 2. Tab switch handler
+  // 2. Sync on tab switch / exit
+  window.addEventListener('beforeunload', syncTimeToSupabase);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      // Tab hidden -> Sync remaining active seconds right before pausing
+    if (document.visibilityState === 'hidden') {
       syncTimeToSupabase();
-    } else {
-      // Tab active again -> Reset checkpoint so background time is ignored
-      lastSyncTimestamp = Date.now();
     }
   });
-
-  // 3. Sync on exit
-  window.addEventListener('beforeunload', syncTimeToSupabase);
 })();
 
 })();
