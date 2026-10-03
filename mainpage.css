@@ -534,14 +534,14 @@ body {
 
 .stats-row {
   display: flex;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #E2E8F0;
 }
 
 .stat-box {
   flex: 1;
   padding: 1rem 1rem;
   text-align: center;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid #E2E8F0;
 }
 
 .stat-box:last-child { border-right: none; }
@@ -702,8 +702,8 @@ body {
 }
 
 .right-header {
-  padding: 2.5rem 2rem;
-  border-bottom: 1px solid var(--border);
+  padding: 2.2rem 2rem;
+  border-bottom: 1px solid #E2E8F0;
   text-align: center;
  
   background: var(--card);
@@ -968,6 +968,20 @@ footer a { color: var(--blue); text-decoration: none; font-weight: 600; }
 
   .split-card {
     flex-direction: column;
+    
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); 
+    border: 1px solid #E2E8F0;
+  }
+
+  .main-content {
+    background-color: #F5F7F8; 
+    padding: 16px; /* Ensures the background color is actually visible around the edges */
+  }
+
+  .pane-right {
+    border-top: 1px solid #EFF2F4; 
+    /* background-color: #F8FAFB;  <-- Uncomment this if you want the bottom half slightly tinted */
   }
 
   /* Convert sidebar into a horizontal bar at the top */
