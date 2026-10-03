@@ -118,10 +118,10 @@
       if(dbClient) await dbClient.auth.signOut();
       window.location.href = "loginpage.html"; 
     }
-    document.getElementById('logout-btn').addEventListener('click', logout);
+    document.getElementById('logoutBtn').addEventListener('click', logout);
     document.getElementById('logout-mobile').addEventListener('click', logout);
 
-    const startButton = document.getElementById('start-btn');
+    const startButton = document.getElementById('start-btn'); 
     const unlockModal = document.getElementById('unlock-modal');
     const closeUnlockModal = document.getElementById('unlock-modal-close');
     const telegramPurchaseLink = document.getElementById('telegram-purchase-link');
@@ -275,8 +275,90 @@
   });
 
 
-// --- Active Study Time Tracker ---
+// Sidebar Expand/Collapse
+const sidebar = document.getElementById('app-sidebar');
+const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
 
+if(sidebarToggleBtn) {
+  sidebarToggleBtn.addEventListener('click', () => {
+    sidebar.classList.toggle('expanded');
+  });
+}
+
+// Subject Switching Logic
+
+const themeColors = {
+  math: '#177894',        // GED Math Blue
+  science: '#D2361C',     // Science light red
+  rla: '#6F5375',         // RLA Purple
+  'social-studies': '#3B7B49' // Social Studies light green
+};
+
+// Clean display names for headers
+const subjectNames = {
+  math: 'Math',
+  science: 'Science',
+  rla: 'RLA ER Analyzer',
+  'social-studies': 'Social Studies'
+};
+
+const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+const standardView = document.getElementById('standard-view');
+const rlaView = document.getElementById('rla-view');
+
+// Both header targets
+const activeHeader = document.getElementById('active-subject-header'); // Top navbar
+const subjectTitle = document.getElementById('subject-title-display');  // Main card title
+
+navItems.forEach(item => {
+  item.addEventListener('click', (e) => {
+    e.preventDefault();
+    
+    // 1. Move the Active Pill
+    navItems.forEach(nav => nav.classList.remove('active'));
+    item.classList.add('active');
+
+    const selectedSubject = item.getAttribute('data-subject');
+    const displayName = subjectNames[selectedSubject] || selectedSubject;
+
+    // 2. Dynamically update CSS Theme Color
+    if (themeColors[selectedSubject]) {
+      document.documentElement.style.setProperty('--theme-color', themeColors[selectedSubject]);
+    }
+
+    // 3. Update Top Navbar Header
+    if (activeHeader) {
+      activeHeader.textContent = displayName;
+    }
+
+    // 4. Cross-Fade Views & Update Banner Title
+    if (selectedSubject === 'rla') {
+      switchView(standardView, rlaView);
+    } else {
+      switchView(rlaView, standardView);
+      if (subjectTitle) {
+        subjectTitle.innerText = displayName;
+      }
+      
+      // TODO: Call your Supabase fetch function here to update Math/Science stats!
+    }
+  });
+});
+
+function switchView(hideContainer, showContainer) {
+  if (!hideContainer || !showContainer || hideContainer.classList.contains('hidden')) return; 
+
+  hideContainer.classList.remove('active-view');
+  
+  setTimeout(() => {
+    hideContainer.classList.add('hidden');
+    showContainer.classList.remove('hidden');
+    
+    requestAnimationFrame(() => {
+      showContainer.classList.add('active-view');
+    });
+  }, 250); 
+}
 
 
 })();

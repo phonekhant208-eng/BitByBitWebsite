@@ -1,0 +1,438 @@
+:root {
+    /* Mapped directly to your dynamic main variables */
+    --rla-theme: var(--theme-color);
+    --rla-accent: var(--blue-hover);
+    
+    --bg-main: var(--bg);
+    --surface: var(--card);
+    
+    --text-dark: var(--text);
+    --text-muted: var(--muted);
+    
+    --border: var(--border);
+    
+    --warning-bg: rgba(180, 83, 9, 0.1);
+    --warning-border: rgba(180, 83, 9, 0.3);
+    --warning-text: #F59E0B;
+    
+    --radius-lg: 16px;
+    --radius-md: 10px;
+    
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 12px -2px rgba(0,0,0,0.08);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Navbar */
+.navbar {
+    background-color: var(--card);
+    padding: 0.85rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.logo {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text);
+}
+
+.logo span {
+    color: var(--rla-theme);
+}
+
+.header-tag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: color-mix(in srgb, var(--rla-theme) 15%, transparent);
+    color: var(--rla-theme);
+    padding: 0.35rem 0.75rem;
+    border-radius: 99px;
+}
+
+/* Layout Container */
+.container {
+    max-width: 1440px;
+    margin: 1.5rem auto;
+    padding: 0 1.5rem;
+    flex-grow: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.workspace {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    min-height: calc(100vh - 130px);
+}
+
+@media (min-width: 900px) {
+    .workspace {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* Panels */
+.panel {
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.panel-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background-color: color-mix(in srgb, var(--card) 60%, var(--bg) 40%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.section-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.dropdown {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    font-weight: 500;
+    outline: none;
+    cursor: pointer;
+    background-color: var(--card);
+    color: var(--text);
+}
+
+.dropdown:focus {
+    border-color: var(--rla-theme);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--rla-theme) 15%, transparent);
+}
+
+/* Passage Content Area */
+.passage-content {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    flex-grow: 1;
+}
+
+/* Passage Typography (Dynamic Headings) */
+#preloaded-view h3,
+.passage-box h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--rla-theme);
+    margin-top: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+#preloaded-view p,
+.passage-box p {
+    color: var(--text);
+    font-size: 0.975rem;
+    line-height: 1.7;
+    margin-bottom: 1rem;
+}
+
+.scrollable {
+    overflow-y: auto;
+    max-height: calc(100vh - 220px);
+}
+
+/* Scrollbars */
+.scrollable::-webkit-scrollbar, textarea::-webkit-scrollbar {
+    width: 6px;
+}
+.scrollable::-webkit-scrollbar-thumb, textarea::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 99px;
+}
+
+/* Inputs */
+.notice-badge {
+    background-color: var(--warning-bg);
+    border: 1px solid var(--warning-border);
+    color: var(--warning-text);
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.custom-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.custom-textarea {
+    width: 100%;
+    min-height: 160px;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background-color: var(--bg);
+    color: var(--text);
+    resize: vertical;
+    outline: none;
+}
+
+/* Editor Right Column */
+.editor-container {
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    flex-grow: 1;
+    gap: 1rem;
+}
+
+.main-textarea {
+    width: 100%;
+    flex-grow: 1;
+    min-height: 380px;
+    padding: 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    resize: none;
+    font-size: 1rem;
+    background-color: var(--bg);
+    color: var(--text);
+    outline: none;
+}
+
+.custom-textarea:focus,
+.main-textarea:focus {
+    background-color: var(--card);
+    border-color: var(--rla-theme);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--rla-theme) 15%, transparent);
+}
+
+/* Button */
+.btn-primary {
+    background-color: var(--rla-theme);
+    color: white;
+    border: none;
+    padding: 1.1rem 1.75rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    background-color: var(--rla-accent);
+}
+
+.btn-secondary {
+    background-color: var(--border);
+    color: var(--text);
+    border: none;
+    padding: 0.8rem 1.5rem;
+    font-weight: 700;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+    background-color: color-mix(in srgb, var(--border) 80%, #000);
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* GED Toolbar Styles */
+.editor-toolbar {
+    background-color: var(--rla-theme);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-bottom: 2px solid color-mix(in srgb, var(--rla-theme) 70%, #000);
+}
+
+.toolbar-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.tool-btn {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    transition: background-color 0.15s ease;
+}
+
+.tool-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.timer {
+    color: white;
+    font-weight: 800;
+    font-size: 1rem;
+    letter-spacing: 1px;
+}
+
+.timer.overtime {
+    color: #ff4d4d;
+}
+
+/* Custom Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-box {
+    background: var(--card);
+    padding: 2rem;
+    border-radius: var(--radius-lg);
+    width: 90%;
+    max-width: 450px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    text-align: center;
+}
+
+.modal-box h3 {
+    color: var(--text);
+    margin-bottom: 0.75rem;
+    font-size: 1.3rem;
+}
+
+.modal-box p {
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.modal-actions .btn-primary,
+.modal-actions .btn-secondary {
+    flex: 1;
+    padding: 0.8rem 1.5rem;
+}
+
+/* FULL WIDTH RESULTS BOTTOM PANEL */
+.results-panel {
+    margin-top: 2rem;
+    padding: 2rem;
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+}
+
+.trait-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.25rem 1.5rem;
+    margin-top: 1rem;
+}
+
+.trait-title {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--rla-theme);
+    margin-bottom: 0.5rem;
+}
+
+.trait-desc {
+    color: var(--text);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+/* GED-Style Passage Tabs */
+.passage-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--border);
+}
+
+.tab-btn {
+    padding: 8px 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--muted);
+    background-color: var(--bg);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+    background-color: var(--card);
+    color: var(--text);
+}
+
+.tab-btn.active {
+    background-color: var(--card);
+    color: var(--rla-theme);
+    border-color: var(--border);
+    border-bottom: 2px solid var(--card);
+    margin-bottom: -2px;
+    font-weight: 700;
+}
