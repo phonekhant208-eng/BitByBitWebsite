@@ -1,0 +1,12 @@
+# Environment & Secret keys
+.env
+.env.local
+.env*.local
+
+# Dependencies
+node_modules/
+
+# OS / Editor temporary files
+.DS_Store
+Thumbs.db
+.vscode/
