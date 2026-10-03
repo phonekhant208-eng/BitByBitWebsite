@@ -959,7 +959,7 @@ footer {
 footer a { color: var(--blue); text-decoration: none; font-weight: 600; }
 
 /* ── MEDIA QUERIES ── */
-/* ── MEDIA QUERIES ── */
+
 @media (max-width: 768px) {
   /* Stack the main layout vertically */
   body {
@@ -1035,6 +1035,12 @@ footer a { color: var(--blue); text-decoration: none; font-weight: 600; }
   /* Hide logout on mobile */
   .sidebar-bottom {
     display: none !important;
+  }
+
+  body, .app-wrapper, .main-wrapper {
+    height: auto; 
+    min-height: 100vh;
+    overflow-y: visible;
   }
 }
 
