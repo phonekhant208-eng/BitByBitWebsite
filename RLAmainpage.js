@@ -309,6 +309,17 @@ async function analyzeEssay() {
         }
 
         renderResults(data);
+
+        // Increment user's RLA analysis count in Supabase
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (user) {
+                await supabaseClient.rpc('increment_rla_analysis', { p_user_id: user.id });
+            }
+        } catch (countErr) {
+            console.error('Failed to update analysis count:', countErr);
+        }
+
     } catch (err) {
         console.error(err);
         showModal("Analysis Error", err.message, [{ text: "Okay", class: "btn-primary", onClick: closeModal }]);

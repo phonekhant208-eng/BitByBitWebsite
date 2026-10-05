@@ -58,6 +58,53 @@
       margin-bottom: 30px;
     }
 
+    /* Google Button Styling */
+    .btn-google {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background-color: #ffffff;
+      color: #222b45;
+      border: 1px solid #e4e9f2;
+      border-radius: 6px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s, border-color 0.2s;
+      margin-bottom: 24px;
+      margin-top: 0;
+    }
+
+    .btn-google:hover {
+      background-color: #f7f9fc;
+      border-color: #c5cee0;
+    }
+
+    /* Divider Styling */
+    .divider {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      color: #8f9bb3;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid #e4e9f2;
+    }
+
+    .divider span {
+      padding: 0 12px;
+    }
+
     /* Input Groups */
     .input-group {
       text-align: left;
@@ -134,7 +181,7 @@
     }
 
     /* Button */
-    button {
+    .btn-submit {
       width: 100%;
       padding: 14px;
       background-color: #2764ff;
@@ -148,7 +195,7 @@
       transition: background-color 0.2s;
     }
 
-    button:hover {
+    .btn-submit:hover {
       background-color: #1a51d6;
     }
 
@@ -188,6 +235,22 @@
     <h1>STUDENT REGISTRATION</h1>
     <p class="subtitle">Create your study room account</p>
 
+    <!-- Google Sign-In Button -->
+    <button type="button" class="btn-google" onclick="signUpWithGoogle()">
+      <svg viewBox="0 0 24 24" width="18" height="18">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+      </svg>
+      <span>Continue with Google</span>
+    </button>
+
+    <!-- OR Divider -->
+    <div class="divider">
+      <span>OR</span>
+    </div>
+
     <div class="input-group">
       <label for="email">EMAIL ADDRESS</label>
       <input id="email" type="email" autocomplete="email" placeholder="name@domain.com" />
@@ -213,11 +276,11 @@
       </div>
     </div>
 
-    <button onclick="register()">Create Account</button>
+    <button class="btn-submit" onclick="register()">Create Account</button>
     <p id="msg"></p>
 
     <!-- Switch Page -->
-    <p class="switch-page">Already registered? <a href="loginpage.html">Log in here</a></p>
+    <p class="switch-page">Already have an account? <a href="loginpage.html">Log in here</a></p>
   </div>
 
  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -227,7 +290,20 @@
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU"
   );
 
+  // New function for Google Auth
+  async function signUpWithGoogle() {
+    document.getElementById('msg').textContent = 'Redirecting to Google...';
+    const { data, error } = await _supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/mainpage.html`
+      }
+    });
 
+    if (error) {
+      document.getElementById('msg').textContent = 'Google login failed: ' + error.message;
+    }
+  }
 
   async function register() {
     const email = document.getElementById('email').value.trim().toLowerCase();

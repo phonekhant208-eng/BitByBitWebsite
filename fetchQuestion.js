@@ -2,10 +2,54 @@ const SUPABASE_URL = "https://mibyte.site";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const TEST_LIMIT = 40;
-const MARKS_PER_QUESTION = 5;
-const TIME_LIMIT_SECONDS = 115 * 60;
-const STORAGE_KEY = 'ged_active_test_session';
+// ── Subject Detection & Dynamic Config ─────────────────────────────
+const urlParams = new URLSearchParams(window.location.search);
+const subject = urlParams.get('subject') || 'math';
+
+const SUBJECT_CONFIG = {
+  'math': {
+    testLimit: 40,
+    timeLimitSeconds: 90 * 60,
+    storageKey: 'ged_active_test_session_math',
+    rpcName: 'get_unanswered_questions',
+    progressTable: 'user_progress',
+    isMath: true,
+    skipStatus: 'incorrect'
+  },
+  'social-studies': {
+    testLimit: 35,
+    timeLimitSeconds: 70 * 60,
+    storageKey: 'ged_active_test_session_social-studies',
+    rpcName: 'get_unanswered_social_questions',
+    progressTable: 'social_user_progress',
+    isMath: false,
+    skipStatus: 'unanswered'
+  },
+  'science': {
+    testLimit: 38,
+    timeLimitSeconds: 90 * 60,
+    storageKey: 'ged_active_test_session_science',
+    rpcName: 'get_unanswered_science_questions',
+    progressTable: 'science_user_progress',
+    isMath: false,
+    skipStatus: 'unanswered'
+  },
+  'rla': {
+    testLimit: 45,
+    timeLimitSeconds: 120 * 60,
+    storageKey: 'ged_active_test_session_rla',
+    rpcName: 'get_unanswered_rla_questions',
+    progressTable: 'rla_user_progress',
+    isMath: false,
+    skipStatus: 'unanswered'
+  }
+};
+
+const currentConfig = SUBJECT_CONFIG[subject] || SUBJECT_CONFIG['math'];
+
+const TEST_LIMIT = currentConfig.testLimit;
+const TIME_LIMIT_SECONDS = currentConfig.timeLimitSeconds;
+const STORAGE_KEY = currentConfig.storageKey;
 
 let questions = [];
 let userAnswers = [];
@@ -120,7 +164,6 @@ function buildNavGrid() {
       saveTestSession();
       renderCurrentQuestion();
       
-      // Close popover with optional chaining so it never crashes if missing
       document.getElementById('questionGridPopover')?.classList.remove('show');
       const navTrigger = document.getElementById('question-nav-trigger');
       if (navTrigger) {
@@ -188,33 +231,45 @@ async function initQuiz() {
     }
   }
 
-  // 100% Scalable Exclusion: Call Postgres RPC function instead of big URL GET strings
-  const { data: availableQuestions, error } = await supabaseClient
-    .rpc('get_unanswered_questions', { p_user_id: user.id });
+  let availableQuestions = [];
+  let fetchError = null;
 
-  if (error || !availableQuestions || availableQuestions.length === 0) {
-    console.error("Error or no questions found:", error);
+  // Branch RPC call based on dynamic configuration
+  const { data, error } = await supabaseClient.rpc(currentConfig.rpcName, { p_user_id: user.id });
+  availableQuestions = data;
+  fetchError = error;
+
+  if (fetchError || !availableQuestions || availableQuestions.length === 0) {
+    console.error("Error or no questions found:", fetchError);
     document.getElementById('question-text').textContent = 'No new questions available!';
     return;
   }
 
-  const categorized = { equations: [], graphs: [], basic: [], geometry: [], other: [] };
-  availableQuestions.forEach(q => {
-    const cat = (q.category || q.catagory || '').toLowerCase().trim();
-    if (categorized[cat]) categorized[cat].push(q);
-    else categorized['other'].push(q);
-  });
-  for (let key in categorized) categorized[key] = shuffleArray(categorized[key]);
-
-  const targets = { equations: 12, graphs: 4, basic: 12, geometry: 12 };
   let finalSelection = [];
-  for (let cat in targets) {
-    finalSelection.push(...categorized[cat].splice(0, targets[cat]));
-  }
 
-  if (finalSelection.length < TEST_LIMIT) {
-    let leftovers = shuffleArray([...categorized.other, ...Object.values(categorized).flat()]);
-    finalSelection.push(...leftovers.slice(0, TEST_LIMIT - finalSelection.length));
+  if (!currentConfig.isMath) {
+    // Non-Math subjects: Just shuffle and pick top pool limit
+    let shuffled = shuffleArray(availableQuestions);
+    finalSelection = shuffled.slice(0, TEST_LIMIT);
+  } else {
+    // Math: Categorized buckets
+    const categorized = { equations: [], graphs: [], basic: [], geometry: [], other: [] };
+    availableQuestions.forEach(q => {
+      const cat = (q.category || q.catagory || '').toLowerCase().trim();
+      if (categorized[cat]) categorized[cat].push(q);
+      else categorized['other'].push(q);
+    });
+    for (let key in categorized) categorized[key] = shuffleArray(categorized[key]);
+
+    const targets = { equations: 12, graphs: 4, basic: 12, geometry: 12 };
+    for (let cat in targets) {
+      finalSelection.push(...categorized[cat].splice(0, targets[cat]));
+    }
+
+    if (finalSelection.length < TEST_LIMIT) {
+      let leftovers = shuffleArray([...categorized.other, ...Object.values(categorized).flat()]);
+      finalSelection.push(...leftovers.slice(0, TEST_LIMIT - finalSelection.length));
+    }
   }
 
   questions = shuffleArray(finalSelection);
@@ -287,18 +342,27 @@ function renderCurrentQuestion() {
 }
 
 // ── Save Progress ──────────────────────────────────────────────────
+
 async function saveTestProgress() {
   const { data: { user } } = await supabaseClient.auth.getUser();
   if (!user) return;
+  
   const progressRows = questions.map((q, idx) => ({
     user_id: user.id,
     question_id: q.id,
     status: questionStatuses[idx],
     updated_at: new Date().toISOString()
-  }));
+  })).filter(row => row.status !== 'unanswered'); // Prevent 'unanswered' from hitting DB
+
+  if (progressRows.length === 0) return;
+
+  // Route to the correct table dynamically based on active config
+  const targetTable = currentConfig.progressTable;
+
   const { error } = await supabaseClient
-    .from('user_progress')
+    .from(targetTable)
     .upsert(progressRows, { onConflict: 'user_id, question_id' });
+    
   if (error) console.error("Error saving progress:", error);
 }
 
@@ -320,16 +384,20 @@ async function submitTest(forceSubmit = false) {
   clearInterval(timerInterval);
   let correctCount = 0;
   questionStatuses = [];
+  
   questions.forEach((q, idx) => {
     const ans = userAnswers[idx];
-    if (!ans) { questionStatuses.push('unanswered'); }
+    if (!ans) { 
+      // Use dynamic skip status (incorrect for Math, unanswered for others)
+      questionStatuses.push(currentConfig.skipStatus); 
+    }
     else if (checkIsCorrect(ans, q.correct_answer)) { correctCount++; questionStatuses.push('correct'); }
     else { questionStatuses.push('incorrect'); }
   });
 
   await saveTestProgress();
 
-  const totalScore = correctCount * MARKS_PER_QUESTION;
+  const totalScore = Math.round((correctCount / questions.length) * 200);
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
     isCompleted: true, questions, userAnswers, questionStatuses, totalScore
   }));
@@ -358,13 +426,32 @@ function renderReviewGrid() {
 function renderReviewQuestion(index) {
   const detailArea = document.getElementById('review-detail-area');
   detailArea.style.display = 'block';
+  
   const q = questions[index];
   const userAns = userAnswers[index];
+  const status = questionStatuses[index];
 
   document.getElementById('review-q-num').textContent = `Reviewing Question ${index + 1}`;
   document.getElementById('review-question-text').textContent = decodeEntities(q.question);
-
+  
   const revQImg = document.getElementById('review-question-image');
+  const container = document.getElementById('review-options-container');
+  const expBox = document.getElementById('explanation-text');
+  const expImg = document.getElementById('explanation-image');
+
+  // Handle Unanswered (Skipped) Protection Rule
+  if (status === 'unanswered') {
+    revQImg.style.display = 'none';
+    container.innerHTML = `<div class="option" style="text-align:center; padding: 20px; color: #6b7280; font-weight: 500;"><em>You skipped this question. The answer and explanation are hidden so you can try it again in a future test.</em></div>`;
+    expBox.textContent = '';
+    expImg.style.display = 'none';
+    
+    detailArea.scrollIntoView({ behavior: 'smooth' });
+    if (window.MathJax) MathJax.typeset();
+    return; // Exit function early
+  }
+
+  // Normal flow for answered/incorrect questions
   if (q.image_url && q.image_url.trim() !== '') {
     revQImg.src = getProxiedImageUrl(q.image_url);
     revQImg.style.display = 'block';
@@ -374,7 +461,6 @@ function renderReviewQuestion(index) {
   }
 
   const optionsList = getOptionsArray(q.options);
-  const container = document.getElementById('review-options-container');
   container.innerHTML = '';
   const letters = ['A', 'B', 'C', 'D'];
 
@@ -388,18 +474,16 @@ function renderReviewQuestion(index) {
 
     if (isThisCorrect) {
       div.classList.add('correct-ans');
-      div.innerHTML = `✅ <strong>${letter}:</strong> &nbsp; ${decodedOptionText} <span style="margin-left:auto; color:#10b981; font-weight:bold;">(Correct Answer)</span>`;
+      div.innerHTML = ` <strong>${letter}:</strong> &nbsp; ${decodedOptionText} <span style="margin-left:auto; color:#10b981; font-weight:bold;">(Correct Answer)</span>`;
     } else if (didUserPick) {
       div.classList.add('wrong-ans');
-      div.innerHTML = `❌ <strong>${letter}:</strong> &nbsp; ${decodedOptionText} <span style="margin-left:auto; color:#ef4444; font-weight:bold;">(Your Answer)</span>`;
+      div.innerHTML = ` <strong>${letter}:</strong> &nbsp; ${decodedOptionText} <span style="margin-left:auto; color:#ef4444; font-weight:bold;">(Your Answer)</span>`;
     } else {
       div.innerHTML = `<strong>${letter}:</strong> &nbsp; ${decodedOptionText}`;
     }
     container.appendChild(div);
   });
 
-  const expBox = document.getElementById('explanation-text');
-  const expImg = document.getElementById('explanation-image');
   const hasText = q.explanation && q.explanation.trim() !== '';
   const hasImage = q.fb_image && q.fb_image.trim() !== '';
 
@@ -434,7 +518,7 @@ document.getElementById('dashboard-btn')?.addEventListener('click', () => {
 
 document.getElementById('start-new-test-btn')?.addEventListener('click', () => {
   clearTestSession();
-  window.location.reload();
+  window.location.reload(); 
 });
 
 initQuiz();

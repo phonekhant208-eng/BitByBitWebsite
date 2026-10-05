@@ -12,9 +12,7 @@
     console.error("Initialization error:", err);
   }
 
-  
   // AUTHENTICATION GUARD
-  // This keeps direct URL access protected, while the paid access gate remains frozen.
   async function checkAuth() {
     if (!dbClient) return;
 
@@ -27,75 +25,141 @@
 
   // Run the check immediately
   checkAuth();
-  // ==========================================
 
-  async function loadDashboard() {
-    if (!dbClient) return;
+  const statsCache = {}; // Caches stats per subject for the active session
+// Central Config for All GED Subjects
+const SUBJECT_CONFIG = {
+  'math': {
+    questionsTable: 'questions',
+    progressTable: 'user_progress',
+    timeText: '90 minutes',
+    subjectName: 'Mathematical Reasoning',
+    structureText: [
+      'This test is administered in one continuous part.',
+      'You have access to an on-screen formula sheet and digital calculator throughout the test.',
+      'There are no scheduled breaks.'
+    ]
+  },
+  'social-studies': {
+    questionsTable: 'social_questions',
+    progressTable: 'social_user_progress',
+    timeText: '70 minutes',
+    subjectName: 'Social Studies',
+    structureText: [
+      'This test is administered in one continuous part.',
+      'You are permitted to use an on-screen calculator or an approved handheld calculator.',
+      'There are no scheduled breaks.'
+    ]
+  },
+  'science': {
+    questionsTable: 'science_questions',
+    progressTable: 'science_user_progress',
+    timeText: '90 minutes',
+    subjectName: 'Science',
+    structureText: [
+      'This test is administered in one continuous part.',
+      'You have access to an on-screen calculator and a digital Calculator Reference Sheet throughout the entire test.',
+      'There are no scheduled breaks.'
+    ]
+  },
+  'rla': {
+    questionsTable: 'rla_questions',
+    progressTable: 'rla_user_progress',
+    timeText: '120 minutes',
+    subjectName: 'Reasoning Through Language Arts',
+    structureText: [
+      'This test includes reading comprehension and language skills assessment.',
+      'An Extended Response (essay) section is included.',
+      'There is a short break between major sections.'
+    ]
+  }
+};
 
-    let dbTotal = 0;
+  // Load Dashboard Stats
+async function loadDashboard(subject = 'math', forceRefresh = false) {
+  if (!dbClient) return;
 
-    // A. Fetch Questions Count
-    try {
-      const { count, error: qError } = await dbClient
-        .from('questions')
-        .select('*', { count: 'exact', head: true });
+  const config = SUBJECT_CONFIG[subject] || SUBJECT_CONFIG['math'];
 
-      if (qError) {
-        document.getElementById('stat-total-q').textContent = "ERR";
-      } else {
-        dbTotal = count || 0;
-        document.getElementById('stat-total-q').textContent = dbTotal;
-      }
-    } catch (err) {
-      console.error(err);
-    }
+  // 1. DYNAMICALLY UPDATE UI LABELS & TEXT
+  const timeDisplay = document.getElementById('stat-time-limit');
+  const titleEl = document.querySelector('.instructions-title');
+  const rulesList = document.querySelector('.test-rules');
 
-    // B. Fetch User Stats
-    try {
-      const { data: { session } } = await dbClient.auth.getSession();
+  if (timeDisplay) timeDisplay.textContent = config.timeText;
+  if (titleEl && config.subjectName) titleEl.textContent = `Welcome to the GED® ${config.subjectName} Test.`;
+  if (rulesList && config.structureText) {
+    rulesList.innerHTML = config.structureText.map(item => `<li>${item}</li>`).join('');
+  }
 
-      if (!session) {
-        document.getElementById('prog-label').textContent = `0 / ${dbTotal} Questions Answered`;
-        return;
-      }
+  // 2. CHECK CACHE FIRST
+  if (!forceRefresh && statsCache[subject]) {
+    renderDashboardUI(statsCache[subject]);
+    return; // Stop here, no DB call needed!
+  }
 
-      const { data: progress, error: pError } = await dbClient
-        .from('user_progress')
+  // 3. FETCH FROM SUPABASE IF NOT CACHED
+  let dbTotal = 0;
+  let statsData = {
+    dbTotal: 0,
+    totalAttempted: 0,
+    correctCount: 0,
+    correctPct: 0,
+    incorrectPct: 0,
+    progPct: 0,
+    avgScore: 0
+  };
+
+  try {
+    // Get total questions count
+    const { count, error: qError } = await dbClient
+      .from(config.questionsTable)
+      .select('*', { count: 'exact', head: true });
+
+    if (!qError) dbTotal = count || 0;
+    statsData.dbTotal = dbTotal;
+
+    // Get user progress
+    const { data: { session } } = await dbClient.auth.getSession();
+    if (session) {
+      const { data: progress } = await dbClient
+        .from(config.progressTable)
         .select('status')
         .eq('user_id', session.user.id);
 
-      if (pError) {
-        document.getElementById('prog-label').textContent = `Stats Blocked`;
-        return;
+      const filteredProgress = progress || [];
+      if (filteredProgress.length > 0) {
+        statsData.totalAttempted = filteredProgress.length;
+        statsData.correctCount = filteredProgress.filter(r => r.status === 'correct').length;
+        statsData.correctPct = Math.round((statsData.correctCount / statsData.totalAttempted) * 100);
+        statsData.incorrectPct = 100 - statsData.correctPct;
+        statsData.progPct = dbTotal > 0 ? Math.min((statsData.totalAttempted / dbTotal) * 100, 100) : 0;
+        statsData.avgScore = Math.round((statsData.correctCount / statsData.totalAttempted) * 200);
       }
-
-      if (progress && progress.length > 0) {
-        const totalAttempted = progress.length;
-        const correctCount = progress.filter(r => r.status === 'correct').length;
-        const correctPct = Math.round((correctCount / totalAttempted) * 100);
-        const incorrectPct = 100 - correctPct;
-
-        document.getElementById('acc-green').style.width = correctPct + '%';
-        document.getElementById('acc-red').style.width = incorrectPct + '%';
-        document.getElementById('pct-correct').textContent = correctPct + '%';
-        document.getElementById('pct-incorrect').textContent = incorrectPct + '%';
-
-        const progPct = dbTotal > 0 ? Math.min((totalAttempted / dbTotal) * 100, 100) : 0;
-        document.getElementById('prog-fill').style.width = progPct + '%';
-        document.getElementById('prog-label').textContent = `${totalAttempted} / ${dbTotal} Questions Answered`;
-
-        // Average score = (Total Correct Marks / Total Answered Questions) * 200 scaled
-        const avgScore = Math.round((correctCount / totalAttempted) * 200);
-        document.getElementById('stat-avg-score').textContent = `${avgScore}`;
-      } else {
-        document.getElementById('prog-label').textContent = `0 / ${dbTotal} Questions Answered`;
-      }
-
-    } catch (err) {
-      console.error(err);
     }
-  }
 
+    // Save result to cache
+    statsCache[subject] = statsData;
+
+    // Render UI
+    renderDashboardUI(statsData);
+
+  } catch (err) {
+    console.error('Error loading dashboard stats:', err);
+  }
+}
+
+// Separate UI renderer function
+function renderDashboardUI(data) {
+  document.getElementById('stat-total-q').textContent = data.dbTotal;
+  document.getElementById('acc-green').style.width = data.correctPct + '%';
+  document.getElementById('acc-red').style.width = data.incorrectPct + '%';
+  document.getElementById('pct-correct').textContent = data.correctPct + '%';
+  document.getElementById('pct-incorrect').textContent = data.incorrectPct + '%';
+  document.getElementById('prog-fill').style.width = data.progPct + '%';
+  document.getElementById('prog-label').textContent = `${data.totalAttempted} / ${data.dbTotal} Questions Answered`;
+  document.getElementById('stat-avg-score').textContent = `${data.avgScore}`;
+}
   function setupUIHandlers() {
     const themeBtn = document.getElementById('theme-btn');
     if (localStorage.getItem('theme') === 'dark') {
@@ -122,6 +186,11 @@
     document.getElementById('logout-mobile').addEventListener('click', logout);
 
     const startButton = document.getElementById('start-btn'); 
+    // Ensure default test URL is set on load
+    if (startButton && !startButton.href.includes('subject=')) {
+      startButton.href = 'testpage.html?subject=math';
+    }
+
     const unlockModal = document.getElementById('unlock-modal');
     const closeUnlockModal = document.getElementById('unlock-modal-close');
     const telegramPurchaseLink = document.getElementById('telegram-purchase-link');
@@ -135,230 +204,161 @@
     const successContent = document.getElementById('unlock-success-content');
     const successOkBtn = document.getElementById('unlock-success-ok');
 
-    // FREE MODE: keep the old unlock UI logic in comments so it can be re-enabled later.
-    // The code below is frozen to prevent paid gating for regular users.
-    //
-    // redeemInput.addEventListener('input', () => {
-    //   redeemErrorMsg.style.display = 'none';
-    // });
-    //
-    // redeemSubmitBtn.addEventListener('click', async (e) => {
-    //   e.preventDefault();
-    //   const code = redeemInput.value.trim();
-    //   redeemErrorMsg.style.display = 'none';
-    //   if (!code) {
-    //     redeemErrorMsg.textContent = "Invalid code please enter the code provided from telegram bot";
-    //     redeemErrorMsg.style.display = 'block';
-    //     return;
-    //   }
-    //   const originalText = redeemSubmitBtn.textContent;
-    //   redeemSubmitBtn.textContent = "Verifying..."; 
-    //   redeemSubmitBtn.disabled = true;
-    //   const { data, error } = await dbClient.rpc('redeem_access_code', { entered_code: code });
-    //   redeemSubmitBtn.textContent = originalText;
-    //   redeemSubmitBtn.disabled = false;
-    //   if (error) {
-    //     console.error("RPC Error:", error);
-    //     redeemErrorMsg.textContent = "Network error verifying code.";
-    //     redeemErrorMsg.style.display = 'block';
-    //     return;
-    //   }
-    //   if (data.success) {
-    //     defaultContent.style.display = 'none';
-    //     successContent.style.display = 'block';
-    //     document.getElementById('unlock-modal-close').style.display = 'none';
-    //   } else {
-    //     redeemErrorMsg.textContent = data.message; 
-    //     redeemErrorMsg.style.display = 'block';
-    //   }
-    // });
-    //
-    // successOkBtn.addEventListener('click', () => {
-    //   setUnlockModalOpen(false);
-    // });
-    //
-    // function setUnlockModalOpen(isOpen) {
-    //   unlockModal.hidden = !isOpen;
-    //   if (isOpen) {
-    //     closeUnlockModal.focus();
-    //   } else {
-    //     startButton.focus();
-    //   }
-    // }
-
-   async function startMathTest(event) {
-  event.preventDefault();
-
-  if (!dbClient) {
-    console.error('Supabase client is unavailable.');
-    return;
-  }
-
-  // 1. Check Authentication
-  const { data: { user }, error: userError } = await dbClient.auth.getUser();
-  if (userError || !user) {
-    window.location.href = 'loginpage.html';
-    return;
-  }
-
-  // FREE MODE: paying checks are frozen so unpaid users can still enter the test.
-  // Original paid-access gate kept below for reference and to be re-enabled later.
-  // const { data: access, error: accessError } = await dbClient
-  //   .from('user_access')
-  //   .select('math_unlocked')
-  //   .eq('user_id', user.id)
-  //   .maybeSingle();
-  //
-  // if (accessError) {
-  //   console.error('Unable to check Math access:', accessError);
-  //   setUnlockModalOpen(true);
-  //   return;
-  // }
-  //
-  // if (access?.math_unlocked === true) {
-  //   window.location.href = startButton.href;
-  //   return;
-  // }
-  //
-  // const { count: totalAttempted, error: progressError } = await dbClient
-  //   .from('user_progress')
-  //   .select('*', { count: 'exact', head: true })
-  //   .eq('user_id', user.id);
-  //
-  // if (progressError) {
-  //   console.error('Unable to verify user progress count:', progressError);
-  //   setUnlockModalOpen(true);
-  //   return;
-  // }
-  //
-  // const answeredCount = totalAttempted || 0;
-  // if (answeredCount < 80) {
-  //   window.location.href = startButton.href;
-  //   return;
-  // }
-  //
-  // setUnlockModalOpen(true);
-
-  window.location.href = startButton.href;
-}
-
-    startButton.addEventListener('click', startMathTest);
-    closeUnlockModal.addEventListener('click', () => setUnlockModalOpen(false));
-    telegramPurchaseLink.addEventListener('click', (event) => {
+    // FREE MODE: unlock UI logic kept frozen.
+    
+    async function startMathTest(event) {
       event.preventDefault();
 
-      let appOpened = false;
-      const cancelFallback = () => {
-        appOpened = true;
-      };
-      window.addEventListener('blur', cancelFallback, { once: true });
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden) cancelFallback();
-      }, { once: true });
+      if (!dbClient) {
+        console.error('Supabase client is unavailable.');
+        return;
+      }
 
-      window.location.href = 'tg://resolve?domain=AuxiliusBot';
-      window.setTimeout(() => {
-        if (!appOpened) window.location.href = 'https://t.me/AuxiliusBot';
-      }, 1200);
-    });
-    unlockModal.addEventListener('click', (event) => {
-      if (event.target === unlockModal) setUnlockModalOpen(false);
-    });
+      // 1. Check Authentication
+      const { data: { user }, error: userError } = await dbClient.auth.getUser();
+      if (userError || !user) {
+        window.location.href = 'loginpage.html';
+        return;
+      }
+
+      window.location.href = startButton.href;
+    }
+
+    startButton.addEventListener('click', startMathTest);
+    
+    if (closeUnlockModal) {
+        closeUnlockModal.addEventListener('click', () => {
+            if (unlockModal) unlockModal.hidden = true;
+        });
+    }
+
+    if (telegramPurchaseLink) {
+        telegramPurchaseLink.addEventListener('click', (event) => {
+          event.preventDefault();
+
+          let appOpened = false;
+          const cancelFallback = () => {
+            appOpened = true;
+          };
+          window.addEventListener('blur', cancelFallback, { once: true });
+          document.addEventListener('visibilitychange', () => {
+            if (document.hidden) cancelFallback();
+          }, { once: true });
+
+          window.location.href = 'tg://resolve?domain=AuxiliusBot';
+          window.setTimeout(() => {
+            if (!appOpened) window.location.href = 'https://t.me/AuxiliusBot';
+          }, 1200);
+        });
+    }
+
+    if (unlockModal) {
+        unlockModal.addEventListener('click', (event) => {
+          if (event.target === unlockModal) unlockModal.hidden = true;
+        });
+    }
+
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && !unlockModal.hidden) setUnlockModalOpen(false);
+      if (event.key === 'Escape' && unlockModal && !unlockModal.hidden) unlockModal.hidden = true;
     });
   }
 
   window.addEventListener('load', () => {
-    loadDashboard();
+    loadDashboard('math'); // Default load
     setupUIHandlers();
   });
 
 
-// Sidebar Expand/Collapse
-const sidebar = document.getElementById('app-sidebar');
-const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+  // Sidebar Expand/Collapse
+  const sidebar = document.getElementById('app-sidebar');
+  const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
 
-if(sidebarToggleBtn) {
-  sidebarToggleBtn.addEventListener('click', () => {
-    sidebar.classList.toggle('expanded');
-  });
-}
-
-// Subject Switching Logic
-
-const themeColors = {
-  math: '#177894',        // GED Math Blue
-  science: '#D2361C',     // Science light red
-  rla: '#6F5375',         // RLA Purple
-  'social-studies': '#3B7B49' // Social Studies light green
-};
-
-// Clean display names for headers
-const subjectNames = {
-  math: 'Math',
-  science: 'Science',
-  rla: 'RLA ER Analyzer',
-  'social-studies': 'Social Studies'
-};
-
-const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
-const standardView = document.getElementById('standard-view');
-const rlaView = document.getElementById('rla-view');
-
-// Both header targets
-const activeHeader = document.getElementById('active-subject-header'); // Top navbar
-const subjectTitle = document.getElementById('subject-title-display');  // Main card title
-
-navItems.forEach(item => {
-  item.addEventListener('click', (e) => {
-    e.preventDefault();
-    
-    // 1. Move the Active Pill
-    navItems.forEach(nav => nav.classList.remove('active'));
-    item.classList.add('active');
-
-    const selectedSubject = item.getAttribute('data-subject');
-    const displayName = subjectNames[selectedSubject] || selectedSubject;
-
-    // 2. Dynamically update CSS Theme Color
-    if (themeColors[selectedSubject]) {
-      document.documentElement.style.setProperty('--theme-color', themeColors[selectedSubject]);
-    }
-
-    // 3. Update Top Navbar Header
-    if (activeHeader) {
-      activeHeader.textContent = displayName;
-    }
-
-    // 4. Cross-Fade Views & Update Banner Title
-    if (selectedSubject === 'rla') {
-      switchView(standardView, rlaView);
-    } else {
-      switchView(rlaView, standardView);
-      if (subjectTitle) {
-        subjectTitle.innerText = displayName;
-      }
-      
-      // TODO: Call your Supabase fetch function here to update Math/Science stats!
-    }
-  });
-});
-
-function switchView(hideContainer, showContainer) {
-  if (!hideContainer || !showContainer || hideContainer.classList.contains('hidden')) return; 
-
-  hideContainer.classList.remove('active-view');
-  
-  setTimeout(() => {
-    hideContainer.classList.add('hidden');
-    showContainer.classList.remove('hidden');
-    
-    requestAnimationFrame(() => {
-      showContainer.classList.add('active-view');
+  if(sidebarToggleBtn) {
+    sidebarToggleBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('expanded');
     });
-  }, 250); 
-}
+  }
 
+  // Subject Switching Logic
+
+  const themeColors = {
+    math: '#177894',        // GED Math Blue
+    science: '#D2361C',     // Science light red
+    rla: '#6F5375',         // RLA Purple
+    'social-studies': '#3B7B49' // Social Studies light green
+  };
+
+  // Clean display names for headers
+  const subjectNames = {
+    math: 'Math',
+    science: 'Science',
+    rla: 'RLA ER Analyzer',
+    'social-studies': 'Social Studies'
+  };
+
+  const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+  const standardView = document.getElementById('standard-view');
+  const rlaView = document.getElementById('rla-view');
+
+  // Both header targets
+  const activeHeader = document.getElementById('active-subject-header'); // Top navbar
+  const subjectTitle = document.getElementById('subject-title-display');  // Main card title
+
+  navItems.forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      
+      // 1. Move the Active Pill
+      navItems.forEach(nav => nav.classList.remove('active'));
+      item.classList.add('active');
+
+      const selectedSubject = item.getAttribute('data-subject');
+      const displayName = subjectNames[selectedSubject] || selectedSubject;
+
+      // 2. Dynamically update CSS Theme Color
+      if (themeColors[selectedSubject]) {
+        document.documentElement.style.setProperty('--theme-color', themeColors[selectedSubject]);
+      }
+
+      // 3. Update Top Navbar Header
+      if (activeHeader) {
+        activeHeader.textContent = displayName;
+      }
+
+      // 4. Cross-Fade Views & Update Banner Title
+      if (selectedSubject === 'rla') {
+        switchView(standardView, rlaView);
+      } else {
+        switchView(rlaView, standardView);
+        if (subjectTitle) {
+          subjectTitle.innerText = displayName;
+        }
+        
+        // NEW: Update the Start Button's link dynamically
+        const startButton = document.getElementById('start-btn');
+        if(startButton) {
+          startButton.href = `testpage.html?subject=${selectedSubject}`;
+        }
+
+        // NEW: Reload the stats for the newly selected subject
+        loadDashboard(selectedSubject); 
+      }
+    });
+  });
+
+  function switchView(hideContainer, showContainer) {
+    if (!hideContainer || !showContainer || hideContainer.classList.contains('hidden')) return; 
+
+    hideContainer.classList.remove('active-view');
+    
+    setTimeout(() => {
+      hideContainer.classList.add('hidden');
+      showContainer.classList.remove('hidden');
+      
+      requestAnimationFrame(() => {
+        showContainer.classList.add('active-view');
+      });
+    }, 250); 
+  }
 
 })();
