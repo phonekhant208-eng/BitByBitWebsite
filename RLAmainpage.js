@@ -72,7 +72,7 @@ async function fetchDailyUsage() {
             const now = new Date();
             const resetTime = new Date(data.rla_next_reset);
 
-            // Check if we are still within the 24 hour block
+            // Check if still within the 24 hour block
             if (data.rla_next_reset && now < resetTime) {
                 dailyUsageCount = data.rla_daily_count || 0;
                 nextResetTime = resetTime;
@@ -297,7 +297,7 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
 
 // 11. Send Essay to Serverless Endpoint (/api/analyze)
 async function analyzeEssay() {
-    // 🛑 Pre-flight DB Check & Countdown Modal
+    //  Pre-flight DB Check & Countdown Modal
     if (currentUser) {
         // Query RPC to verify time and increment if valid
         const { data: rpcData, error: rpcError } = await supabaseClient.rpc('check_and_increment_rla', { p_user_id: currentUser.id });
