@@ -393,11 +393,18 @@
                   <label for="passage-select" class="section-label"
                     >Select Practice Prompt:</label
                   >
-                  <select id="passage-select" class="dropdown">
-                    <option value="custom" selected>
-                      Custom (Paste your own passages)
-                    </option>
-                  </select>
+                  <div class="passage-selection-container" style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+                    <!-- New Usage Counter UI -->
+                    <div id="usage-counter" style="background: #e2e8f0; padding: 5px 12px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; color: #4a5568;">
+                        Loading usage...
+                    </div>
+                    
+                    <select id="passage-select" class="dropdown">
+                      <option value="custom" selected>
+                        Custom (Paste your own passages)
+                      </option>
+                    </select>
+                  </div>
                 </div>
 
                 <div

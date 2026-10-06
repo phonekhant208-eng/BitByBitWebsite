@@ -1,11 +1,12 @@
 // 1. Initialize Supabase Client
 const SUPABASE_URL = "https://mibyte.site";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU";
+const SUPABASE_ANON_KEY = "YOUR_ANON_KEY"; // Make sure to keep your actual key here
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// 2. DOM Element Selectors
+// 2. DOM Element Selectors[cite: 13]
 const dropdown = document.getElementById('passage-select');
+const usageCounter = document.getElementById('usage-counter'); // Optional UI counter
 const preloadedView = document.getElementById('preloaded-view');
 const customView = document.getElementById('custom-view');
 const analyzeBtn = document.getElementById('analyze-btn');
@@ -13,16 +14,21 @@ const essayInput = document.getElementById('essay-input');
 const resultsView = document.getElementById('results-view');
 const timerDisplay = document.getElementById('test-timer');
 
-// Cache object storing fetched passages
+// Cache object storing fetched passages[cite: 13]
 const passageCache = {};
 
-// --- Timer & Test State ---
+// --- Usage State ---
+let currentUser = null;
+let dailyUsageCount = 0;
+let nextResetTime = null;
+
+// --- Timer & Test State ---[cite: 13]
 let testActive = false;
 let timerInterval = null;
 let timeRemaining = 2700; // 45 minutes in seconds
 let isOvertime = false;
 
-// Modal System 
+// Modal System[cite: 13]
 const modalOverlay = document.getElementById('custom-modal');
 const modalTitle = document.getElementById('modal-title');
 const modalText = document.getElementById('modal-text');
@@ -50,7 +56,48 @@ function closeModal() {
     modalOverlay.classList.add('hidden');
 }
 
-// 3. Populate Dropdown dynamically from Supabase
+// Fetch Daily Usage & Timestamps on Load
+async function fetchDailyUsage() {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    currentUser = user;
+
+    if (user) {
+        const { data, error } = await supabaseClient
+            .from('user_access')
+            .select('rla_daily_count, rla_next_reset')
+            .eq('user_id', user.id)
+            .single();
+
+        if (data) {
+            const now = new Date();
+            const resetTime = new Date(data.rla_next_reset);
+
+            // Check if we are still within the 24 hour block
+            if (data.rla_next_reset && now < resetTime) {
+                dailyUsageCount = data.rla_daily_count || 0;
+                nextResetTime = resetTime;
+            } else {
+                dailyUsageCount = 0;
+                nextResetTime = null;
+            }
+        }
+    }
+    updateUsageUI();
+}
+
+function updateUsageUI() {
+    if (!usageCounter) return;
+    usageCounter.textContent = `${dailyUsageCount}/2 Free Analyses Today`;
+    if (dailyUsageCount >= 2) {
+        usageCounter.style.backgroundColor = "#fed7d7";
+        usageCounter.style.color = "#c53030";
+    } else {
+        usageCounter.style.backgroundColor = "#e2e8f0";
+        usageCounter.style.color = "#4a5568";
+    }
+}
+
+// 3. Populate Dropdown dynamically from Supabase[cite: 13]
 async function initPassageDropdown() {
     const { data, error } = await supabaseClient
         .from('RLA_ER_Source_Text')
@@ -70,21 +117,19 @@ async function initPassageDropdown() {
     });
 }
 
-// 4. Check for Source Texts (Requires BOTH Passage A and B to be filled for Custom mode)
+// 4. Check for Source Texts[cite: 13]
 function getHasSourceTexts() {
     if (dropdown.value !== 'custom') return true;
     const textareas = customView.querySelectorAll('textarea');
     if (textareas.length < 2) return false;
-
     const textA = textareas[0]?.value.trim() || '';
     const textB = textareas[1]?.value.trim() || '';
-
     return textA.length > 0 && textB.length > 0;
 }
 
-// 5. Update Button Label based on Word Count and Mode
+// 5. Update Button Label based on Word Count and Mode[cite: 13]
 function updateButtonText() {
-    if (testActive) return; // Don't change text while test is running
+    if (testActive) return;
 
     const text = essayInput.value.trim();
     const wordCount = text === "" ? 0 : text.split(/\s+/).length;
@@ -96,7 +141,7 @@ function updateButtonText() {
     }
 }
 
-// 6. Timer Logic
+// 6. Timer Logic[cite: 13]
 function updateTimerUI(seconds) {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -122,7 +167,7 @@ function startTestTimer() {
                 updateTimerUI(timeRemaining);
             }
         } else {
-            timeRemaining++; // Counting up in overtime
+            timeRemaining++; 
             updateTimerUI(timeRemaining);
         }
     }, 1000);
@@ -148,10 +193,10 @@ function triggerTimeUpModal() {
     );
 }
 
-// 7. Handle Main Action Button Click
+// 7. Handle Main Action Button Click[cite: 13]
 function handleMainAction() {
     if (testActive) {
-        analyzeEssay(); // If test is running, clicking submits it
+        analyzeEssay(); 
         return;
     }
 
@@ -161,7 +206,6 @@ function handleMainAction() {
     const isCustom = dropdown.value === 'custom';
 
     if (wordCount >= 100) {
-        // QUICK ANALYZE MODE
         if (isCustom && !hasSource) {
             showModal("Missing Source Texts", "To get accurate feedback and rubric suggestions, you must provide text for BOTH Passage A and Passage B.", [
                 { text: "Cancel", class: "btn-secondary", onClick: closeModal },
@@ -171,7 +215,6 @@ function handleMainAction() {
             analyzeEssay();
         }
     } else {
-        // START TEST MODE
         if (isCustom && !hasSource) {
             showModal("Missing Practice Text", "You must enter text for BOTH Passage A and Passage B before starting the 45-minute practice test.", [
                 { text: "Okay", class: "btn-primary", onClick: closeModal }
@@ -182,16 +225,12 @@ function handleMainAction() {
     }
 }
 
-// 8. Render Selected Passage with GED-style Tabs
+// 8. Render Selected Passage with GED-style Tabs[cite: 13]
 function renderPreloadedPassage(data) {
     preloadedView.innerHTML = `
         <div class="passage-tabs">
-            <button type="button" class="tab-btn active" data-target="passage-a-box">
-                Passage A
-            </button>
-            <button type="button" class="tab-btn" data-target="passage-b-box">
-                Passage B
-            </button>
+            <button type="button" class="tab-btn active" data-target="passage-a-box">Passage A</button>
+            <button type="button" class="tab-btn" data-target="passage-b-box">Passage B</button>
         </div>
         <div id="passage-a-box" class="passage-box">
             <p>${data.passage_a_text}</p>
@@ -201,7 +240,6 @@ function renderPreloadedPassage(data) {
         </div>
     `;
 
-    // Tab switching listener
     const tabs = preloadedView.querySelectorAll('.tab-btn');
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
@@ -220,7 +258,7 @@ function renderPreloadedPassage(data) {
     });
 }
 
-// 9. Listen for Dropdown Changes
+// 9. Listen for Dropdown Changes[cite: 13]
 dropdown.addEventListener('change', (e) => {
     const selectedSlug = e.target.value;
 
@@ -235,11 +273,10 @@ dropdown.addEventListener('change', (e) => {
             renderPreloadedPassage(passageCache[selectedSlug]);
         }
     }
-
     updateButtonText(); 
 });
 
-// 10. Toolbar Commands (Cut, Copy, Paste, Undo, Redo)
+// 10. Toolbar Commands (Cut, Copy, Paste, Undo, Redo)[cite: 13]
 document.querySelectorAll('.tool-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
         const cmd = btn.getAttribute('data-cmd');
@@ -260,13 +297,51 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
 
 // 11. Send Essay to Serverless Endpoint (/api/analyze)
 async function analyzeEssay() {
+    // 🛑 Pre-flight DB Check & Countdown Modal
+    if (currentUser) {
+        // Query RPC to verify time and increment if valid
+        const { data: rpcData, error: rpcError } = await supabaseClient.rpc('check_and_increment_rla', { p_user_id: currentUser.id });
+        
+        if (rpcData && rpcData.length > 0) {
+            const result = rpcData[0];
+            
+            if (!result.allowed) {
+                // Calculate hours/minutes until next reset
+                const resetTime = new Date(result.next_reset);
+                const now = new Date();
+                const diffMs = resetTime - now;
+
+                if (diffMs > 0) {
+                    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                    
+                    showModal(
+                        "Daily Limit Reached",
+                        `You have used your 2 free essay analyses. You can use it again after ${hours} hours and ${minutes} minutes.`,
+                        [{ text: "Okay", class: "btn-primary", onClick: closeModal }]
+                    );
+                    
+                    // Keep UI synced
+                    dailyUsageCount = result.current_daily_count;
+                    updateUsageUI();
+                    return; 
+                }
+            } else {
+                // If allowed, update UI with new count
+                dailyUsageCount = result.current_daily_count;
+                nextResetTime = new Date(result.next_reset);
+                updateUsageUI();
+            }
+        }
+    }
+
     const essayText = essayInput.value.trim();
     if (!essayText) {
         showModal("Empty Essay", "Please enter your essay before grading.", [{ text: "Okay", class: "btn-primary", onClick: closeModal }]);
         return;
     }
 
-    // Stop timer if running
+    // Stop timer if running[cite: 13]
     if (timerInterval) {
         clearInterval(timerInterval);
         timerDisplay.classList.add('hidden');
@@ -286,7 +361,7 @@ async function analyzeEssay() {
         passageB = passageCache[selectedMode].passage_b_text;
     }
 
-    // Set Loading UI State
+    // Set Loading UI State[cite: 13]
     analyzeBtn.disabled = true;
     analyzeBtn.innerText = " Grading with Official GED Rubric...";
 
@@ -310,16 +385,6 @@ async function analyzeEssay() {
 
         renderResults(data);
 
-        // Increment user's RLA analysis count in Supabase
-        try {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (user) {
-                await supabaseClient.rpc('increment_rla_analysis', { p_user_id: user.id });
-            }
-        } catch (countErr) {
-            console.error('Failed to update analysis count:', countErr);
-        }
-
     } catch (err) {
         console.error(err);
         showModal("Analysis Error", err.message, [{ text: "Okay", class: "btn-primary", onClick: closeModal }]);
@@ -329,7 +394,7 @@ async function analyzeEssay() {
     }
 }
 
-// 12. Render Scorecard inside Full-Width Panel
+// 12. Render Scorecard inside Full-Width Panel[cite: 13]
 function renderResults(data) {
     resultsView.innerHTML = `
         <h2 style="color: var(--rla-theme); margin-bottom: 1rem;"> Score Summary</h2>
@@ -360,11 +425,11 @@ function renderResults(data) {
     });
 }
 
-// 13. Event Listeners
+// 13. Event Listeners[cite: 13]
 analyzeBtn.addEventListener('click', handleMainAction);
 essayInput.addEventListener('input', updateButtonText);
 
-// Stop reloading in an active test
+// Stop reloading in an active test[cite: 13]
 window.addEventListener('beforeunload', (e) => {
     if (testActive) {
         e.preventDefault();
@@ -373,3 +438,4 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 initPassageDropdown();
+fetchDailyUsage(); // Fetch limit status on page load
