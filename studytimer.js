@@ -2,7 +2,7 @@
 (function () {
     let activeSeconds = 0;
     let timerInterval = null;
-    const SYNC_INTERVAL = 30; // Sync to Supabase every 30 seconds
+    const SYNC_INTERVAL = 120; // Sync to Supabase every 120 seconds
 
     
 
