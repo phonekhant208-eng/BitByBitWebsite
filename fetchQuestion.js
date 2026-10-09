@@ -93,7 +93,7 @@ function startTimer(endTime) {
 function getProxiedImageUrl(originalUrl) {
   if (!originalUrl) return '';
   const blockedDomain = 'qyzsymedekmekgosykik.supabase.co';
-  const proxyDomain = 'mibyte.site';
+  const proxyDomain = 'api.mibyte.site';
   return originalUrl.replace(blockedDomain, proxyDomain);
 }
 
