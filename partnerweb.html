@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Partner Portal Simulator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .card {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 360px;
+      text-align: center;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0 20px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+    button:hover { background: #1d4ed8; }
+    .danger-btn { background: #dc2626; }
+    .danger-btn:hover { background: #b91c1c; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>Partner Portal Simulator</h2>
+    <p style="color: #666; font-size: 0.9rem;">Simulate student redirects from your partner's website.</p>
+    
+    <div style="text-align: left;">
+      <label for="orbitId" style="font-weight: bold; font-size: 0.9rem;">Student Orbit ID:</label>
+      <input type="text" id="orbitId" value="student_101" placeholder="e.g. 101 or student_99">
+    </div>
+
+    <!-- Test 1: Legitimate Redirect -->
+    <button onclick="testValidRedirect()">🚀 Launch Practice (Valid Sign)</button>
+
+    <!-- Test 2: Security Attack Simulation -->
+    <button onclick="testTamperedRedirect()" class="danger-btn">⚠️ Test Hack (Fake Signature)</button>
+  </div>
+
+  <script>
+    // Shared secret must match orbitRedirect.html
+    const SHARED_SECRET = "MiByte_Secret_Salt_Key_2026";
+
+    // Helper function to calculate signature
+    async function calculateSignature(id) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(id + SHARED_SECRET);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // 1. Valid Redirect Test
+    async function testValidRedirect() {
+      const orbitId = document.getElementById('orbitId').value.trim();
+      if (!orbitId) return alert('Please enter an Orbit ID');
+
+      const sig = await calculateSignature(orbitId);
+      
+      // Redirects to orbitRedirect.html
+      window.location.href = `orbitRedirect.html?orbit_id=${encodeURIComponent(orbitId)}&sig=${sig}`;
+    }
+
+    // 2. Tampered Security Test
+    function testTamperedRedirect() {
+      const orbitId = document.getElementById('orbitId').value.trim();
+      if (!orbitId) return alert('Please enter an Orbit ID');
+
+      // Send invalid signature to test security blocking
+      const fakeSig = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
+      
+      window.location.href = `orbitRedirect.html?orbit_id=${encodeURIComponent(orbitId)}&sig=${fakeSig}`;
+    }
+  </script>
+
+</body>
+</html>
