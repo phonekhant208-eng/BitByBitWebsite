@@ -284,24 +284,52 @@
   </div>
 
  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+ <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
   const _supabase = window.supabase.createClient(
     "https://api.mibyte.site",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU"
   );
 
-  // New function for Google Auth
-  async function signUpWithGoogle() {
-    document.getElementById('msg').textContent = 'Redirecting to Google...';
-    const { data, error } = await _supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/mainpage.html`
-      }
-    });
+  let googleTokenClient;
+  window.addEventListener('load', () => {
+    if (window.google) {
+      googleTokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: '245359950275-7e45ahuu52oeri8uenvtl48924c9lj8g.apps.googleusercontent.com',
+        scope: 'email profile openid',
+        callback: async (tokenResponse) => {
+          if (tokenResponse.error) {
+            document.getElementById('msg').textContent = 'Google login failed: ' + tokenResponse.error;
+            return;
+          }
 
-    if (error) {
-      document.getElementById('msg').textContent = 'Google login failed: ' + error.message;
+          document.getElementById('msg').textContent = 'Authenticating with Supabase...';
+
+          const { data, error } = await _supabase.auth.signInWithIdToken({
+            provider: 'google',
+            token: tokenResponse.access_token,
+          });
+
+          if (error) {
+            document.getElementById('msg').textContent = 'Supabase error: ' + error.message;
+            return;
+          }
+
+          document.getElementById('msg').textContent = 'Success! Redirecting...';
+          setTimeout(() => {
+            window.location.href = 'mainpage.html';
+          }, 1000);
+        }
+      });
+    }
+  });
+
+  function signUpWithGoogle() {
+    document.getElementById('msg').textContent = 'Opening Google Sign-In...';
+    if (googleTokenClient) {
+      googleTokenClient.requestAccessToken();
+    } else {
+      document.getElementById('msg').textContent = 'Google SDK still loading. Please try again.';
     }
   }
 
@@ -326,7 +354,6 @@
       return;
     }
 
-    // 1. Create the account in Supabase Auth.
     msg.textContent = 'Creating account...';
     const { data: authData, error: signUpError } = await _supabase.auth.signUp({ 
       email: email, 
@@ -344,7 +371,6 @@
       return;
     }
 
-    // 2. Log in immediately so Supabase grants an authenticated session token.
     msg.textContent = 'Logging in...';
     const { error: loginError } = await _supabase.auth.signInWithPassword({ 
       email: email, 
@@ -356,7 +382,6 @@
       return; 
     }
 
-    // 3. The on_auth_user_created database trigger creates user_access.
     msg.textContent = 'Success! Redirecting to dashboard...';
     setTimeout(() => { 
       window.location.href = 'mainpage.html'; 
