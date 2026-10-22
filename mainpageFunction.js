@@ -1,47 +1,49 @@
 (function() {
   const SUPABASE_URL = "https://api.mibyte.site";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6InFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU";
 
   let dbClient;
 
   try {
     if (window.supabase) {
-      dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          flowType: 'implicit',
+          persistSession: true,
+          autoRefreshToken: true
+        }
+      });
     }
   } catch (err) {
     console.error("Initialization error:", err);
   }
 
-  // AUTHENTICATION GUARD & OAUTH CODE EXCHANGE
+  // AUTHENTICATION GUARD
   async function checkAuth() {
     if (!dbClient) return;
 
-    // 1. Check if returning from Google OAuth redirect with an authorization code
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    
-    if (code) {
-      try {
-        const { error } = await dbClient.auth.exchangeCodeForSession(code);
-        if (error) {
-          console.error("Code exchange failed:", error.message);
-          window.location.href = '/register.html';
-          return;
-        }
-        // Clean the ?code= from the URL bar without reloading the page
-        window.history.replaceState({}, document.title, window.location.pathname);
-      } catch (err) {
-        console.error("OAuth error:", err);
-        window.location.href = '/register.html';
-        return;
+    // 1. Listen for Supabase session establishment (handles incoming hash tokens automatically)
+    const { data: { subscription } } = dbClient.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        subscription.unsubscribe();
       }
-    }
+    });
 
-    // 2. Verify active session
-    const { data: { session }, error: sessionError } = await dbClient.auth.getSession();
-    if (sessionError || !session) {
-      window.location.href = '/register.html';
-    }
+    // 2. Check current session with a brief delay to let Supabase parse URL hash tokens
+    setTimeout(async () => {
+      const { data: { session }, error } = await dbClient.auth.getSession();
+      
+      if (error || !session) {
+        // Check if tokens exist in URL hash
+        const hasHashTokens = window.location.hash.includes('access_token=') || 
+                              window.location.hash.includes('error=');
+        
+        if (!hasHashTokens) {
+          subscription.unsubscribe();
+          window.location.href = '/register.html';
+        }
+      }
+    }, 1000);
   }
 
   // Run the auth check immediately
