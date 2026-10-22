@@ -12,154 +12,172 @@
     console.error("Initialization error:", err);
   }
 
-  // AUTHENTICATION GUARD
+  // AUTHENTICATION GUARD (Updated to wait for OAuth PKCE code exchange)
   async function checkAuth() {
     if (!dbClient) return;
 
-    const { data: { user } } = await dbClient.auth.getUser();
-    if (!user) {
-      window.location.href = '/register.html';
-      return;
-    }
+    return new Promise((resolve) => {
+      const { data: { subscription } } = dbClient.auth.onAuthStateChange((event, session) => {
+        if (session?.user) {
+          subscription.unsubscribe();
+          resolve(session.user);
+        }
+      });
+
+      dbClient.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          subscription.unsubscribe();
+          resolve(user);
+        } else if (!window.location.search.includes('code=')) {
+          // If no user and no incoming OAuth code in URL, redirect to register
+          subscription.unsubscribe();
+          window.location.href = '/register.html';
+        }
+      });
+
+      // Safety fallback timeout (5 seconds) if network hangs
+      setTimeout(() => {
+        subscription.unsubscribe();
+        dbClient.auth.getUser().then(({ data: { user } }) => {
+          if (!user) window.location.href = '/register.html';
+        });
+      }, 5000);
+    });
   }
 
   // Run the check immediately
   checkAuth();
 
   const statsCache = {}; // Caches stats per subject for the active session
-// Central Config for All GED Subjects
-const SUBJECT_CONFIG = {
-  'math': {
-    questionsTable: 'questions',
-    progressTable: 'user_progress',
-    timeText: '90 minutes',
-    subjectName: 'Mathematical Reasoning',
-    structureText: [
-      'This test is administered in one continuous part.',
-      'You have access to an on-screen formula sheet and digital calculator throughout the test.',
-      'There are no scheduled breaks.'
-    ]
-  },
-  'social-studies': {
-    questionsTable: 'social_questions',
-    progressTable: 'social_user_progress',
-    timeText: '70 minutes',
-    subjectName: 'Social Studies',
-    structureText: [
-      'This test is administered in one continuous part.',
-      'You are permitted to use an on-screen calculator or an approved handheld calculator.',
-      'There are no scheduled breaks.'
-    ]
-  },
-  'science': {
-    questionsTable: 'science_questions',
-    progressTable: 'science_user_progress',
-    timeText: '90 minutes',
-    subjectName: 'Science',
-    structureText: [
-      'This test is administered in one continuous part.',
-      'You have access to an on-screen calculator and a digital Calculator Reference Sheet throughout the entire test.',
-      'There are no scheduled breaks.'
-    ]
-  },
-  'rla': {
-    questionsTable: 'rla_questions',
-    progressTable: 'rla_user_progress',
-    timeText: '120 minutes',
-    subjectName: 'Reasoning Through Language Arts',
-    structureText: [
-      'This test includes reading comprehension and language skills assessment.',
-      'An Extended Response (essay) section is included.',
-      'There is a short break between major sections.'
-    ]
-  }
-};
 
-  // Load Dashboard Stats
-async function loadDashboard(subject = 'math', forceRefresh = false) {
-  if (!dbClient) return;
-
-  const config = SUBJECT_CONFIG[subject] || SUBJECT_CONFIG['math'];
-
-  // 1. DYNAMICALLY UPDATE UI LABELS & TEXT
-  const timeDisplay = document.getElementById('stat-time-limit');
-  const titleEl = document.querySelector('.instructions-title');
-  const rulesList = document.querySelector('.test-rules');
-
-  if (timeDisplay) timeDisplay.textContent = config.timeText;
-  if (titleEl && config.subjectName) titleEl.textContent = `Welcome to the GED® ${config.subjectName} Test.`;
-  if (rulesList && config.structureText) {
-    rulesList.innerHTML = config.structureText.map(item => `<li>${item}</li>`).join('');
-  }
-
-  // 2. CHECK CACHE FIRST
-  if (!forceRefresh && statsCache[subject]) {
-    renderDashboardUI(statsCache[subject]);
-    return; // Stop here, no DB call needed!
-  }
-
-  // 3. FETCH FROM SUPABASE IF NOT CACHED
-  let dbTotal = 0;
-  let statsData = {
-    dbTotal: 0,
-    totalAttempted: 0,
-    correctCount: 0,
-    correctPct: 0,
-    incorrectPct: 0,
-    progPct: 0,
-    avgScore: 0
+  // Central Config for All GED Subjects
+  const SUBJECT_CONFIG = {
+    'math': {
+      questionsTable: 'questions',
+      progressTable: 'user_progress',
+      timeText: '90 minutes',
+      subjectName: 'Mathematical Reasoning',
+      structureText: [
+        'This test is administered in one continuous part.',
+        'You have access to an on-screen formula sheet and digital calculator throughout the test.',
+        'There are no scheduled breaks.'
+      ]
+    },
+    'social-studies': {
+      questionsTable: 'social_questions',
+      progressTable: 'social_user_progress',
+      timeText: '70 minutes',
+      subjectName: 'Social Studies',
+      structureText: [
+        'This test is administered in one continuous part.',
+        'You are permitted to use an on-screen calculator or an approved handheld calculator.',
+        'There are no scheduled breaks.'
+      ]
+    },
+    'science': {
+      questionsTable: 'science_questions',
+      progressTable: 'science_user_progress',
+      timeText: '90 minutes',
+      subjectName: 'Science',
+      structureText: [
+        'This test is administered in one continuous part.',
+        'You have access to an on-screen calculator and a digital Calculator Reference Sheet throughout the entire test.',
+        'There are no scheduled breaks.'
+      ]
+    },
+    'rla': {
+      questionsTable: 'rla_questions',
+      progressTable: 'rla_user_progress',
+      timeText: '120 minutes',
+      subjectName: 'Reasoning Through Language Arts',
+      structureText: [
+        'This test includes reading comprehension and language skills assessment.',
+        'An Extended Response (essay) section is included.',
+        'There is a short break between major sections.'
+      ]
+    }
   };
 
-  try {
-    // Get total questions count
-    const { count, error: qError } = await dbClient
-      .from(config.questionsTable)
-      .select('*', { count: 'exact', head: true });
+  // Load Dashboard Stats
+  async function loadDashboard(subject = 'math', forceRefresh = false) {
+    if (!dbClient) return;
 
-    if (!qError) dbTotal = count || 0;
-    statsData.dbTotal = dbTotal;
+    const config = SUBJECT_CONFIG[subject] || SUBJECT_CONFIG['math'];
 
-    // Get user progress
-    const { data: { session } } = await dbClient.auth.getSession();
-    if (session) {
-      const { data: progress } = await dbClient
-        .from(config.progressTable)
-        .select('status')
-        .eq('user_id', session.user.id);
+    // 1. DYNAMICALLY UPDATE UI LABELS & TEXT
+    const timeDisplay = document.getElementById('stat-time-limit');
+    const titleEl = document.querySelector('.instructions-title');
+    const rulesList = document.querySelector('.test-rules');
 
-      const filteredProgress = progress || [];
-      if (filteredProgress.length > 0) {
-        statsData.totalAttempted = filteredProgress.length;
-        statsData.correctCount = filteredProgress.filter(r => r.status === 'correct').length;
-        statsData.correctPct = Math.round((statsData.correctCount / statsData.totalAttempted) * 100);
-        statsData.incorrectPct = 100 - statsData.correctPct;
-        statsData.progPct = dbTotal > 0 ? Math.min((statsData.totalAttempted / dbTotal) * 100, 100) : 0;
-        statsData.avgScore = Math.round((statsData.correctCount / statsData.totalAttempted) * 200);
-      }
+    if (timeDisplay) timeDisplay.textContent = config.timeText;
+    if (titleEl && config.subjectName) titleEl.textContent = `Welcome to the GED® ${config.subjectName} Test.`;
+    if (rulesList && config.structureText) {
+      rulesList.innerHTML = config.structureText.map(item => `<li>${item}</li>`).join('');
     }
 
-    // Save result to cache
-    statsCache[subject] = statsData;
+    // 2. CHECK CACHE FIRST
+    if (!forceRefresh && statsCache[subject]) {
+      renderDashboardUI(statsCache[subject]);
+      return; 
+    }
 
-    // Render UI
-    renderDashboardUI(statsData);
+    // 3. FETCH FROM SUPABASE IF NOT CACHED
+    let dbTotal = 0;
+    let statsData = {
+      dbTotal: 0,
+      totalAttempted: 0,
+      correctCount: 0,
+      correctPct: 0,
+      incorrectPct: 0,
+      progPct: 0,
+      avgScore: 0
+    };
 
-  } catch (err) {
-    console.error('Error loading dashboard stats:', err);
+    try {
+      const { count, error: qError } = await dbClient
+        .from(config.questionsTable)
+        .select('*', { count: 'exact', head: true });
+
+      if (!qError) dbTotal = count || 0;
+      statsData.dbTotal = dbTotal;
+
+      const { data: { session } } = await dbClient.auth.getSession();
+      if (session) {
+        const { data: progress } = await dbClient
+          .from(config.progressTable)
+          .select('status')
+          .eq('user_id', session.user.id);
+
+        const filteredProgress = progress || [];
+        if (filteredProgress.length > 0) {
+          statsData.totalAttempted = filteredProgress.length;
+          statsData.correctCount = filteredProgress.filter(r => r.status === 'correct').length;
+          statsData.correctPct = Math.round((statsData.correctCount / statsData.totalAttempted) * 100);
+          statsData.incorrectPct = 100 - statsData.correctPct;
+          statsData.progPct = dbTotal > 0 ? Math.min((statsData.totalAttempted / dbTotal) * 100, 100) : 0;
+          statsData.avgScore = Math.round((statsData.correctCount / statsData.totalAttempted) * 200);
+        }
+      }
+
+      statsCache[subject] = statsData;
+      renderDashboardUI(statsData);
+
+    } catch (err) {
+      console.error('Error loading dashboard stats:', err);
+    }
   }
-}
 
-// Separate UI renderer function
-function renderDashboardUI(data) {
-  document.getElementById('stat-total-q').textContent = data.dbTotal;
-  document.getElementById('acc-green').style.width = data.correctPct + '%';
-  document.getElementById('acc-red').style.width = data.incorrectPct + '%';
-  document.getElementById('pct-correct').textContent = data.correctPct + '%';
-  document.getElementById('pct-incorrect').textContent = data.incorrectPct + '%';
-  document.getElementById('prog-fill').style.width = data.progPct + '%';
-  document.getElementById('prog-label').textContent = `${data.totalAttempted} / ${data.dbTotal} Questions Answered`;
-  document.getElementById('stat-avg-score').textContent = `${data.avgScore}`;
-}
+  function renderDashboardUI(data) {
+    document.getElementById('stat-total-q').textContent = data.dbTotal;
+    document.getElementById('acc-green').style.width = data.correctPct + '%';
+    document.getElementById('acc-red').style.width = data.incorrectPct + '%';
+    document.getElementById('pct-correct').textContent = data.correctPct + '%';
+    document.getElementById('pct-incorrect').textContent = data.incorrectPct + '%';
+    document.getElementById('prog-fill').style.width = data.progPct + '%';
+    document.getElementById('prog-label').textContent = `${data.totalAttempted} / ${data.dbTotal} Questions Answered`;
+    document.getElementById('stat-avg-score').textContent = `${data.avgScore}`;
+  }
+
   function setupUIHandlers() {
     const themeBtn = document.getElementById('theme-btn');
     if (localStorage.getItem('theme') === 'dark') {
@@ -186,7 +204,6 @@ function renderDashboardUI(data) {
     document.getElementById('logout-mobile').addEventListener('click', logout);
 
     const startButton = document.getElementById('start-btn'); 
-    // Ensure default test URL is set on load
     if (startButton && !startButton.href.includes('subject=')) {
       startButton.href = 'testpage.html?subject=math';
     }
@@ -194,17 +211,6 @@ function renderDashboardUI(data) {
     const unlockModal = document.getElementById('unlock-modal');
     const closeUnlockModal = document.getElementById('unlock-modal-close');
     const telegramPurchaseLink = document.getElementById('telegram-purchase-link');
-
-    const redeemSubmitBtn = document.getElementById('redeem-math-code');
-    const redeemInput = document.getElementById('math-activation-code');
-    const redeemErrorMsg = document.getElementById('redeem-error-msg');
-    
-    // Elements for switching views
-    const defaultContent = document.getElementById('unlock-default-content');
-    const successContent = document.getElementById('unlock-success-content');
-    const successOkBtn = document.getElementById('unlock-success-ok');
-
-    // FREE MODE: unlock UI logic kept frozen.
     
     async function startMathTest(event) {
       event.preventDefault();
@@ -214,7 +220,6 @@ function renderDashboardUI(data) {
         return;
       }
 
-      // 1. Check Authentication
       const { data: { user }, error: userError } = await dbClient.auth.getUser();
       if (userError || !user) {
         window.location.href = 'loginpage.html';
@@ -264,12 +269,10 @@ function renderDashboardUI(data) {
   }
 
   window.addEventListener('load', () => {
-    loadDashboard('math'); // Default load
+    loadDashboard('math');
     setupUIHandlers();
   });
 
-
-  // Sidebar Expand/Collapse
   const sidebar = document.getElementById('app-sidebar');
   const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
 
@@ -279,16 +282,13 @@ function renderDashboardUI(data) {
     });
   }
 
-  // Subject Switching Logic
-
   const themeColors = {
-    math: '#177894',        // GED Math Blue
-    science: '#D2361C',     // Science light red
-    rla: '#6F5375',         // RLA Purple
-    'social-studies': '#3B7B49' // Social Studies light green
+    math: '#177894',
+    science: '#D2361C',
+    rla: '#6F5375',
+    'social-studies': '#3B7B49'
   };
 
-  // Clean display names for headers
   const subjectNames = {
     math: 'Math',
     science: 'Science',
@@ -300,32 +300,27 @@ function renderDashboardUI(data) {
   const standardView = document.getElementById('standard-view');
   const rlaView = document.getElementById('rla-view');
 
-  // Both header targets
-  const activeHeader = document.getElementById('active-subject-header'); // Top navbar
-  const subjectTitle = document.getElementById('subject-title-display');  // Main card title
+  const activeHeader = document.getElementById('active-subject-header');
+  const subjectTitle = document.getElementById('subject-title-display');
 
   navItems.forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
       
-      // 1. Move the Active Pill
       navItems.forEach(nav => nav.classList.remove('active'));
       item.classList.add('active');
 
       const selectedSubject = item.getAttribute('data-subject');
       const displayName = subjectNames[selectedSubject] || selectedSubject;
 
-      // 2. Dynamically update CSS Theme Color
       if (themeColors[selectedSubject]) {
         document.documentElement.style.setProperty('--theme-color', themeColors[selectedSubject]);
       }
 
-      // 3. Update Top Navbar Header
       if (activeHeader) {
         activeHeader.textContent = displayName;
       }
 
-      // 4. Cross-Fade Views & Update Banner Title
       if (selectedSubject === 'rla') {
         switchView(standardView, rlaView);
       } else {
@@ -334,13 +329,11 @@ function renderDashboardUI(data) {
           subjectTitle.innerText = displayName;
         }
         
-        // NEW: Update the Start Button's link dynamically
         const startButton = document.getElementById('start-btn');
         if(startButton) {
           startButton.href = `testpage.html?subject=${selectedSubject}`;
         }
 
-        // NEW: Reload the stats for the newly selected subject
         loadDashboard(selectedSubject); 
       }
     });
