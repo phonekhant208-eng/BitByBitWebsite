@@ -8,9 +8,8 @@
     if (window.supabase) {
       dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
-          flowType: 'implicit',
-          detectSessionInUrl: true,
-          persistSession: true
+          persistSession: true,
+          autoRefreshToken: true
         }
       });
     }
@@ -18,36 +17,19 @@
     console.error("Initialization error:", err);
   }
 
-  // AUTHENTICATION GUARD (Implicit Flow Hash Catcher)
+  // AUTHENTICATION GUARD (Popup Populated Session Check)
   async function checkAuth() {
     if (!dbClient) return;
 
-    // Give Supabase a moment to parse tokens from #access_token=... in the URL hash
-    await new Promise(resolve => setTimeout(resolve, 1200));
-
-    const { data: { session } } = await dbClient.auth.getSession();
+    const { data: { session }, error } = await dbClient.auth.getSession();
     
-    if (session) {
-      loadDashboard('math');
-      setupUIHandlers();
+    if (!session) {
+      window.location.href = '/register.html';
       return;
     }
 
-    // Fallback check for URL hash tokens
-    if (window.location.hash.includes('access_token=')) {
-      setTimeout(async () => {
-        const { data: { session: retrySession } } = await dbClient.auth.getSession();
-        if (retrySession) {
-          loadDashboard('math');
-          setupUIHandlers();
-          return;
-        }
-        window.location.href = '/register.html';
-      }, 1000);
-      return;
-    }
-
-    window.location.href = '/register.html';
+    loadDashboard('math');
+    setupUIHandlers();
   }
 
   checkAuth();

@@ -129,27 +129,42 @@
   <script>
     const _supabase = window.supabase.createClient(
       "https://api.mibyte.site",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6InFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU",
-      {
-        auth: {
-          flowType: 'implicit'
-        }
-      }
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6InFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU"
     );
 
     async function signUpWithGoogle() {
-      document.getElementById('msg').textContent = 'Redirecting to Google...';
-      const { error } = await _supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/mainpage.html`,
-          flowType: 'implicit'
-        }
-      });
+      document.getElementById('msg').textContent = 'Opening Google Sign-In...';
+      
+      const authUrl = `https://api.mibyte.site/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(window.location.origin + '/mainpage.html')}`;
+      
+      const width = 500;
+      const height = 600;
+      const left = (window.innerWidth - width) / 2;
+      const top = (window.innerHeight - height) / 2;
+      
+      const popup = window.open(
+        authUrl,
+        'Google Login',
+        `width=${width},height=${height},top=${top},left=${left}`
+      );
 
-      if (error) {
-        document.getElementById('msg').textContent = 'Google login failed: ' + error.message;
-      }
+      const pollInterval = setInterval(() => {
+        try {
+          if (!popup || popup.closed) {
+            clearInterval(pollInterval);
+            document.getElementById('msg').textContent = 'Login cancelled or closed.';
+            return;
+          }
+          
+          if (popup.location.href.includes('mainpage.html')) {
+            clearInterval(pollInterval);
+            popup.close();
+            window.location.href = 'mainpage.html';
+          }
+        } catch (e) {
+          // Cross-origin checks; ignore until returned to mibyte.site
+        }
+      }, 500);
     }
 
     async function login() {
