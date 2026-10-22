@@ -1,6 +1,6 @@
 (function() {
   const SUPABASE_URL = "https://api.mibyte.site";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6InFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU";
 
   let dbClient;
 
@@ -8,9 +8,9 @@
     if (window.supabase) {
       dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
-          flowType: 'implicit',
-          detectSessionInUrl: true,
-          persistSession: true
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
         }
       });
     }
@@ -18,68 +18,29 @@
     console.error("Initialization error:", err);
   }
 
-  
-  // BULLETPROOF AUTHENTICATION GUARD WITH DEBUGGING
+  // AUTHENTICATION GUARD (PKCE Flow Handler)
   async function checkAuth() {
-    if (!dbClient) {
-      console.error("DEBUG: dbClient is not initialized!");
-      return;
-    }
+    if (!dbClient) return;
 
-    console.log("DEBUG: Current URL:", window.location.href);
-    console.log("DEBUG: URL Hash:", window.location.hash);
-    console.log("DEBUG: URL Search:", window.location.search);
-
-    // 1. Listen to all auth state changes
-    dbClient.auth.onAuthStateChange((event, session) => {
-      console.log("DEBUG: onAuthStateChange event:", event, "Session exists:", !!session);
-    });
-
-    // 2. Give Supabase a moment to parse incoming URL hash tokens (#access_token=...)
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Give Supabase time to detect and automatically exchange the ?code= parameter in the URL
+    await new Promise(resolve => setTimeout(resolve, 1200));
 
     const { data: { session }, error } = await dbClient.auth.getSession();
     
-    if (error) {
-      console.error("DEBUG: getSession error:", error.message);
-    }
-
     if (session) {
-      console.log("DEBUG: Session found! User:", session.user.email);
       loadDashboard('math');
       setupUIHandlers();
       return;
     }
 
-    console.warn("DEBUG: No session found after delay.");
-
-    // 3. If tokens are in the URL hash, log them and give it one more retry
-    if (window.location.hash.includes('access_token=')) {
-      console.log("DEBUG: Access tokens detected in URL hash. Retrying session grab...");
-      setTimeout(async () => {
-        const { data: { session: retrySession }, error: retryError } = await dbClient.auth.getSession();
-        if (retrySession) {
-          console.log("DEBUG: Retry successful! User:", retrySession.user.email);
-          loadDashboard('math');
-          setupUIHandlers();
-        } else {
-          console.error("DEBUG: Retry failed. Error:", retryError?.message);
-          window.location.href = 'register.html';
-        }
-      }, 1500);
-      return;
-    }
-
-    console.warn("DEBUG: No session and no tokens. Redirecting to register.html");
-    window.location.href = 'register.html';
+    // If no session is found, redirect to register
+    window.location.href = '/register.html';
   }
 
-  // Run auth check immediately on load
   checkAuth();
 
-  const statsCache = {}; // Caches stats per subject for the active session
+  const statsCache = {};
 
-  // Central Config for All GED Subjects
   const SUBJECT_CONFIG = {
     'math': {
       questionsTable: 'questions',
@@ -127,7 +88,6 @@
     }
   };
 
-  // Load Dashboard Stats
   async function loadDashboard(subject = 'math', forceRefresh = false) {
     if (!dbClient) return;
 
@@ -194,23 +154,14 @@
   }
 
   function renderDashboardUI(data) {
-    const totalQ = document.getElementById('stat-total-q');
-    const accGreen = document.getElementById('acc-green');
-    const accRed = document.getElementById('acc-red');
-    const pctCorrect = document.getElementById('pct-correct');
-    const pctIncorrect = document.getElementById('pct-incorrect');
-    const progFill = document.getElementById('prog-fill');
-    const progLabel = document.getElementById('prog-label');
-    const avgScore = document.getElementById('stat-avg-score');
-
-    if (totalQ) totalQ.textContent = data.dbTotal;
-    if (accGreen) accGreen.style.width = data.correctPct + '%';
-    if (accRed) accRed.style.width = data.incorrectPct + '%';
-    if (pctCorrect) pctCorrect.textContent = data.correctPct + '%';
-    if (pctIncorrect) pctIncorrect.textContent = data.incorrectPct + '%';
-    if (progFill) progFill.style.width = data.progPct + '%';
-    if (progLabel) progLabel.textContent = `${data.totalAttempted} / ${data.dbTotal} Questions Answered`;
-    if (avgScore) avgScore.textContent = `${data.avgScore}`;
+    document.getElementById('stat-total-q').textContent = data.dbTotal;
+    document.getElementById('acc-green').style.width = data.correctPct + '%';
+    document.getElementById('acc-red').style.width = data.incorrectPct + '%';
+    document.getElementById('pct-correct').textContent = data.correctPct + '%';
+    document.getElementById('pct-incorrect').textContent = data.incorrectPct + '%';
+    document.getElementById('prog-fill').style.width = data.progPct + '%';
+    document.getElementById('prog-label').textContent = `${data.totalAttempted} / ${data.dbTotal} Questions Answered`;
+    document.getElementById('stat-avg-score').textContent = `${data.avgScore}`;
   }
 
   function setupUIHandlers() {
@@ -264,111 +215,79 @@
       }
       startButton.addEventListener('click', startMathTest);
     }
+  }
 
-    const unlockModal = document.getElementById('unlock-modal');
-    const closeUnlockModal = document.getElementById('unlock-modal-close');
-    const telegramPurchaseLink = document.getElementById('telegram-purchase-link');
-    
-    if (closeUnlockModal && unlockModal) {
-      closeUnlockModal.addEventListener('click', () => {
-        unlockModal.hidden = true;
-      });
-    }
-
-    if (telegramPurchaseLink) {
-      telegramPurchaseLink.addEventListener('click', (event) => {
-        event.preventDefault();
-        let appOpened = false;
-        const cancelFallback = () => { appOpened = true; };
-        window.addEventListener('blur', cancelFallback, { once: true });
-        window.location.href = 'tg://resolve?domain=AuxiliusBot';
-        window.setTimeout(() => {
-          if (!appOpened) window.location.href = 'https://t.me/AuxiliusBot';
-        }, 1200);
-      });
-    }
-
-    if (unlockModal) {
-      unlockModal.addEventListener('click', (event) => {
-        if (event.target === unlockModal) unlockModal.hidden = true;
-      });
-    }
-
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && unlockModal && !unlockModal.hidden) unlockModal.hidden = true;
+  const sidebar = document.getElementById('app-sidebar');
+  const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+  if(sidebarToggleBtn && sidebar) {
+    sidebarToggleBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('expanded');
     });
+  }
 
-    const sidebar = document.getElementById('app-sidebar');
-    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
-    if(sidebarToggleBtn && sidebar) {
-      sidebarToggleBtn.addEventListener('click', () => {
-        sidebar.classList.toggle('expanded');
-      });
-    }
+  const themeColors = {
+    math: '#177894',
+    science: '#D2361C',
+    rla: '#6F5375',
+    'social-studies': '#3B7B49'
+  };
 
-    const themeColors = {
-      math: '#177894',
-      science: '#D2361C',
-      rla: '#6F5375',
-      'social-studies': '#3B7B49'
-    };
+  const subjectNames = {
+    math: 'Math',
+    science: 'Science',
+    rla: 'RLA ER Analyzer',
+    'social-studies': 'Social Studies'
+  };
 
-    const subjectNames = {
-      math: 'Math',
-      science: 'Science',
-      rla: 'RLA ER Analyzer',
-      'social-studies': 'Social Studies'
-    };
+  const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+  const standardView = document.getElementById('standard-view');
+  const rlaView = document.getElementById('rla-view');
+  const activeHeader = document.getElementById('active-subject-header');
+  const subjectTitle = document.getElementById('subject-title-display');
 
-    const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
-    const standardView = document.getElementById('standard-view');
-    const rlaView = document.getElementById('rla-view');
-    const activeHeader = document.getElementById('active-subject-header');
-    const subjectTitle = document.getElementById('subject-title-display');
+  navItems.forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      navItems.forEach(nav => nav.classList.remove('active'));
+      item.classList.add('active');
 
-    navItems.forEach(item => {
-      item.addEventListener('click', (e) => {
-        e.preventDefault();
-        navItems.forEach(nav => nav.classList.remove('active'));
-        item.classList.add('active');
+      const selectedSubject = item.getAttribute('data-subject');
+      const displayName = subjectNames[selectedSubject] || selectedSubject;
 
-        const selectedSubject = item.getAttribute('data-subject');
-        const displayName = subjectNames[selectedSubject] || selectedSubject;
+      if (themeColors[selectedSubject]) {
+        document.documentElement.style.setProperty('--theme-color', themeColors[selectedSubject]);
+      }
 
-        if (themeColors[selectedSubject]) {
-          document.documentElement.style.setProperty('--theme-color', themeColors[selectedSubject]);
+      if (activeHeader) {
+        activeHeader.textContent = displayName;
+      }
+
+      if (selectedSubject === 'rla') {
+        switchView(standardView, rlaView);
+      } else {
+        switchView(rlaView, standardView);
+        if (subjectTitle) {
+          subjectTitle.innerText = displayName;
         }
-
-        if (activeHeader) {
-          activeHeader.textContent = displayName;
+        const startButton = document.getElementById('start-btn');
+        if(startButton) {
+          startButton.href = `testpage.html?subject=${selectedSubject}`;
         }
-
-        if (selectedSubject === 'rla') {
-          switchView(standardView, rlaView);
-        } else {
-          switchView(rlaView, standardView);
-          if (subjectTitle) {
-            subjectTitle.innerText = displayName;
-          }
-          if(startButton) {
-            startButton.href = `testpage.html?subject=${selectedSubject}`;
-          }
-          loadDashboard(selectedSubject); 
-        }
-      });
+        loadDashboard(selectedSubject); 
+      }
     });
+  });
 
-    function switchView(hideContainer, showContainer) {
-      if (!hideContainer || !showContainer || hideContainer.classList.contains('hidden')) return; 
-      hideContainer.classList.remove('active-view');
-      setTimeout(() => {
-        hideContainer.classList.add('hidden');
-        showContainer.classList.remove('hidden');
-        requestAnimationFrame(() => {
-          showContainer.classList.add('active-view');
-        });
-      }, 250); 
-    }
+  function switchView(hideContainer, showContainer) {
+    if (!hideContainer || !showContainer || hideContainer.classList.contains('hidden')) return; 
+    hideContainer.classList.remove('active-view');
+    setTimeout(() => {
+      hideContainer.classList.add('hidden');
+      showContainer.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        showContainer.classList.add('active-view');
+      });
+    }, 250); 
   }
 
 })();
