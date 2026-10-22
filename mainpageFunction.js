@@ -9,8 +9,8 @@
       dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
           flowType: 'implicit',
-          persistSession: true,
-          autoRefreshToken: true
+          detectSessionInUrl: true,
+          persistSession: true
         }
       });
     }
@@ -18,35 +18,41 @@
     console.error("Initialization error:", err);
   }
 
-  // AUTHENTICATION GUARD
+  // BULLETPROOF AUTHENTICATION GUARD
   async function checkAuth() {
     if (!dbClient) return;
 
-    // 1. Listen for Supabase session establishment (handles incoming hash tokens automatically)
-    const { data: { subscription } } = dbClient.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
-        subscription.unsubscribe();
-      }
-    });
+    // 1. Give Supabase a moment to parse incoming URL hash tokens (#access_token=...)
+    await new Promise(resolve => setTimeout(resolve, 1200));
 
-    // 2. Check current session with a brief delay to let Supabase parse URL hash tokens
-    setTimeout(async () => {
-      const { data: { session }, error } = await dbClient.auth.getSession();
-      
-      if (error || !session) {
-        // Check if tokens exist in URL hash
-        const hasHashTokens = window.location.hash.includes('access_token=') || 
-                              window.location.hash.includes('error=');
-        
-        if (!hasHashTokens) {
-          subscription.unsubscribe();
-          window.location.href = '/register.html';
+    const { data: { session }, error } = await dbClient.auth.getSession();
+    
+    if (session) {
+      // User is successfully authenticated! Initialize dashboard.
+      loadDashboard('math');
+      setupUIHandlers();
+      return;
+    }
+
+    // 2. If tokens are in the URL hash, give it one more short retry for async storage
+    if (window.location.hash.includes('access_token=')) {
+      setTimeout(async () => {
+        const { data: { session: retrySession } } = await dbClient.auth.getSession();
+        if (retrySession) {
+          loadDashboard('math');
+          setupUIHandlers();
+        } else {
+          window.location.href = 'register.html';
         }
-      }
-    }, 1000);
+      }, 1000);
+      return;
+    }
+
+    // 3. No session and no tokens -> unauthorized, redirect to register
+    window.location.href = 'register.html';
   }
 
-  // Run the auth check immediately
+  // Run auth check immediately on load
   checkAuth();
 
   const statsCache = {}; // Caches stats per subject for the active session
@@ -105,7 +111,6 @@
 
     const config = SUBJECT_CONFIG[subject] || SUBJECT_CONFIG['math'];
 
-    // 1. DYNAMICALLY UPDATE UI LABELS & TEXT
     const timeDisplay = document.getElementById('stat-time-limit');
     const titleEl = document.querySelector('.instructions-title');
     const rulesList = document.querySelector('.test-rules');
@@ -116,13 +121,11 @@
       rulesList.innerHTML = config.structureText.map(item => `<li>${item}</li>`).join('');
     }
 
-    // 2. CHECK CACHE FIRST
     if (!forceRefresh && statsCache[subject]) {
       renderDashboardUI(statsCache[subject]);
       return; 
     }
 
-    // 3. FETCH FROM SUPABASE IF NOT CACHED
     let dbTotal = 0;
     let statsData = {
       dbTotal: 0,
@@ -169,190 +172,181 @@
   }
 
   function renderDashboardUI(data) {
-    document.getElementById('stat-total-q').textContent = data.dbTotal;
-    document.getElementById('acc-green').style.width = data.correctPct + '%';
-    document.getElementById('acc-red').style.width = data.incorrectPct + '%';
-    document.getElementById('pct-correct').textContent = data.correctPct + '%';
-    document.getElementById('pct-incorrect').textContent = data.incorrectPct + '%';
-    document.getElementById('prog-fill').style.width = data.progPct + '%';
-    document.getElementById('prog-label').textContent = `${data.totalAttempted} / ${data.dbTotal} Questions Answered`;
-    document.getElementById('stat-avg-score').textContent = `${data.avgScore}`;
+    const totalQ = document.getElementById('stat-total-q');
+    const accGreen = document.getElementById('acc-green');
+    const accRed = document.getElementById('acc-red');
+    const pctCorrect = document.getElementById('pct-correct');
+    const pctIncorrect = document.getElementById('pct-incorrect');
+    const progFill = document.getElementById('prog-fill');
+    const progLabel = document.getElementById('prog-label');
+    const avgScore = document.getElementById('stat-avg-score');
+
+    if (totalQ) totalQ.textContent = data.dbTotal;
+    if (accGreen) accGreen.style.width = data.correctPct + '%';
+    if (accRed) accRed.style.width = data.incorrectPct + '%';
+    if (pctCorrect) pctCorrect.textContent = data.correctPct + '%';
+    if (pctIncorrect) pctIncorrect.textContent = data.incorrectPct + '%';
+    if (progFill) progFill.style.width = data.progPct + '%';
+    if (progLabel) progLabel.textContent = `${data.totalAttempted} / ${data.dbTotal} Questions Answered`;
+    if (avgScore) avgScore.textContent = `${data.avgScore}`;
   }
 
   function setupUIHandlers() {
     const themeBtn = document.getElementById('theme-btn');
-    if (localStorage.getItem('theme') === 'dark') {
-      document.body.setAttribute('data-theme', 'dark');
-      themeBtn.textContent = '☀️';
+    if (themeBtn) {
+      if (localStorage.getItem('theme') === 'dark') {
+        document.body.setAttribute('data-theme', 'dark');
+        themeBtn.textContent = '☀️';
+      }
+      themeBtn.addEventListener('click', () => {
+        const isDark = document.body.getAttribute('data-theme') === 'dark';
+        document.body.setAttribute('data-theme', isDark ? '' : 'dark');
+        themeBtn.textContent = isDark ? '🌙' : '☀️';
+        localStorage.setItem('theme', isDark ? 'light' : 'dark');
+      });
     }
-    themeBtn.addEventListener('click', () => {
-      const isDark = document.body.getAttribute('data-theme') === 'dark';
-      document.body.setAttribute('data-theme', isDark ? '' : 'dark');
-      themeBtn.textContent = isDark ? '🌙' : '☀️';
-      localStorage.setItem('theme', isDark ? 'light' : 'dark');
-    });
 
-    document.getElementById('hamburger').addEventListener('click', () => {
-      document.getElementById('mobile-menu').classList.toggle('open');
-    });
+    const hamburger = document.getElementById('hamburger');
+    if (hamburger) {
+      hamburger.addEventListener('click', () => {
+        document.getElementById('mobile-menu').classList.toggle('open');
+      });
+    }
 
     async function logout(e) {
       e.preventDefault();
       if(dbClient) await dbClient.auth.signOut();
       window.location.href = "loginpage.html"; 
     }
-    document.getElementById('logoutBtn').addEventListener('click', logout);
-    document.getElementById('logout-mobile').addEventListener('click', logout);
+    
+    const logoutBtn = document.getElementById('logoutBtn');
+    const logoutMobile = document.getElementById('logout-mobile');
+    if (logoutBtn) logoutBtn.addEventListener('click', logout);
+    if (logoutMobile) logoutMobile.addEventListener('click', logout);
 
     const startButton = document.getElementById('start-btn'); 
-    if (startButton && !startButton.href.includes('subject=')) {
-      startButton.href = 'testpage.html?subject=math';
+    if (startButton) {
+      if (!startButton.href.includes('subject=')) {
+        startButton.href = 'testpage.html?subject=math';
+      }
+      
+      async function startMathTest(event) {
+        event.preventDefault();
+        if (!dbClient) return;
+        const { data: { user } } = await dbClient.auth.getUser();
+        if (!user) {
+          window.location.href = 'loginpage.html';
+          return;
+        }
+        window.location.href = startButton.href;
+      }
+      startButton.addEventListener('click', startMathTest);
     }
 
     const unlockModal = document.getElementById('unlock-modal');
     const closeUnlockModal = document.getElementById('unlock-modal-close');
     const telegramPurchaseLink = document.getElementById('telegram-purchase-link');
     
-    async function startMathTest(event) {
-      event.preventDefault();
-
-      if (!dbClient) {
-        console.error('Supabase client is unavailable.');
-        return;
-      }
-
-      const { data: { user }, error: userError } = await dbClient.auth.getUser();
-      if (userError || !user) {
-        window.location.href = 'loginpage.html';
-        return;
-      }
-
-      window.location.href = startButton.href;
-    }
-
-    startButton.addEventListener('click', startMathTest);
-    
-    if (closeUnlockModal) {
-        closeUnlockModal.addEventListener('click', () => {
-            if (unlockModal) unlockModal.hidden = true;
-        });
+    if (closeUnlockModal && unlockModal) {
+      closeUnlockModal.addEventListener('click', () => {
+        unlockModal.hidden = true;
+      });
     }
 
     if (telegramPurchaseLink) {
-        telegramPurchaseLink.addEventListener('click', (event) => {
-          event.preventDefault();
-
-          let appOpened = false;
-          const cancelFallback = () => {
-            appOpened = true;
-          };
-          window.addEventListener('blur', cancelFallback, { once: true });
-          document.addEventListener('visibilitychange', () => {
-            if (document.hidden) cancelFallback();
-          }, { once: true });
-
-          window.location.href = 'tg://resolve?domain=AuxiliusBot';
-          window.setTimeout(() => {
-            if (!appOpened) window.location.href = 'https://t.me/AuxiliusBot';
-          }, 1200);
-        });
+      telegramPurchaseLink.addEventListener('click', (event) => {
+        event.preventDefault();
+        let appOpened = false;
+        const cancelFallback = () => { appOpened = true; };
+        window.addEventListener('blur', cancelFallback, { once: true });
+        window.location.href = 'tg://resolve?domain=AuxiliusBot';
+        window.setTimeout(() => {
+          if (!appOpened) window.location.href = 'https://t.me/AuxiliusBot';
+        }, 1200);
+      });
     }
 
     if (unlockModal) {
-        unlockModal.addEventListener('click', (event) => {
-          if (event.target === unlockModal) unlockModal.hidden = true;
-        });
+      unlockModal.addEventListener('click', (event) => {
+        if (event.target === unlockModal) unlockModal.hidden = true;
+      });
     }
 
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && unlockModal && !unlockModal.hidden) unlockModal.hidden = true;
     });
-  }
 
-  window.addEventListener('load', () => {
-    loadDashboard('math');
-    setupUIHandlers();
-  });
-
-  const sidebar = document.getElementById('app-sidebar');
-  const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
-
-  if(sidebarToggleBtn) {
-    sidebarToggleBtn.addEventListener('click', () => {
-      sidebar.classList.toggle('expanded');
-    });
-  }
-
-  const themeColors = {
-    math: '#177894',
-    science: '#D2361C',
-    rla: '#6F5375',
-    'social-studies': '#3B7B49'
-  };
-
-  const subjectNames = {
-    math: 'Math',
-    science: 'Science',
-    rla: 'RLA ER Analyzer',
-    'social-studies': 'Social Studies'
-  };
-
-  const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
-  const standardView = document.getElementById('standard-view');
-  const rlaView = document.getElementById('rla-view');
-
-  const activeHeader = document.getElementById('active-subject-header');
-  const subjectTitle = document.getElementById('subject-title-display');
-
-  navItems.forEach(item => {
-    item.addEventListener('click', (e) => {
-      e.preventDefault();
-      
-      navItems.forEach(nav => nav.classList.remove('active'));
-      item.classList.add('active');
-
-      const selectedSubject = item.getAttribute('data-subject');
-      const displayName = subjectNames[selectedSubject] || selectedSubject;
-
-      if (themeColors[selectedSubject]) {
-        document.documentElement.style.setProperty('--theme-color', themeColors[selectedSubject]);
-      }
-
-      if (activeHeader) {
-        activeHeader.textContent = displayName;
-      }
-
-      if (selectedSubject === 'rla') {
-        switchView(standardView, rlaView);
-      } else {
-        switchView(rlaView, standardView);
-        if (subjectTitle) {
-          subjectTitle.innerText = displayName;
-        }
-        
-        const startButton = document.getElementById('start-btn');
-        if(startButton) {
-          startButton.href = `testpage.html?subject=${selectedSubject}`;
-        }
-
-        loadDashboard(selectedSubject); 
-      }
-    });
-  });
-
-  function switchView(hideContainer, showContainer) {
-    if (!hideContainer || !showContainer || hideContainer.classList.contains('hidden')) return; 
-
-    hideContainer.classList.remove('active-view');
-    
-    setTimeout(() => {
-      hideContainer.classList.add('hidden');
-      showContainer.classList.remove('hidden');
-      
-      requestAnimationFrame(() => {
-        showContainer.classList.add('active-view');
+    const sidebar = document.getElementById('app-sidebar');
+    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+    if(sidebarToggleBtn && sidebar) {
+      sidebarToggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('expanded');
       });
-    }, 250); 
+    }
+
+    const themeColors = {
+      math: '#177894',
+      science: '#D2361C',
+      rla: '#6F5375',
+      'social-studies': '#3B7B49'
+    };
+
+    const subjectNames = {
+      math: 'Math',
+      science: 'Science',
+      rla: 'RLA ER Analyzer',
+      'social-studies': 'Social Studies'
+    };
+
+    const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+    const standardView = document.getElementById('standard-view');
+    const rlaView = document.getElementById('rla-view');
+    const activeHeader = document.getElementById('active-subject-header');
+    const subjectTitle = document.getElementById('subject-title-display');
+
+    navItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        navItems.forEach(nav => nav.classList.remove('active'));
+        item.classList.add('active');
+
+        const selectedSubject = item.getAttribute('data-subject');
+        const displayName = subjectNames[selectedSubject] || selectedSubject;
+
+        if (themeColors[selectedSubject]) {
+          document.documentElement.style.setProperty('--theme-color', themeColors[selectedSubject]);
+        }
+
+        if (activeHeader) {
+          activeHeader.textContent = displayName;
+        }
+
+        if (selectedSubject === 'rla') {
+          switchView(standardView, rlaView);
+        } else {
+          switchView(rlaView, standardView);
+          if (subjectTitle) {
+            subjectTitle.innerText = displayName;
+          }
+          if(startButton) {
+            startButton.href = `testpage.html?subject=${selectedSubject}`;
+          }
+          loadDashboard(selectedSubject); 
+        }
+      });
+    });
+
+    function switchView(hideContainer, showContainer) {
+      if (!hideContainer || !showContainer || hideContainer.classList.contains('hidden')) return; 
+      hideContainer.classList.remove('active-view');
+      setTimeout(() => {
+        hideContainer.classList.add('hidden');
+        showContainer.classList.remove('hidden');
+        requestAnimationFrame(() => {
+          showContainer.classList.add('active-view');
+        });
+      }, 250); 
+    }
   }
 
 })();
