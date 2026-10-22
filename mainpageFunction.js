@@ -12,7 +12,7 @@
     console.error("Initialization error:", err);
   }
 
-  // AUTHENTICATION GUARD (Updated to wait for OAuth PKCE code exchange)
+// AUTHENTICATION GUARD
   async function checkAuth() {
     if (!dbClient) return;
 
@@ -28,10 +28,17 @@
         if (user) {
           subscription.unsubscribe();
           resolve(user);
-        } else if (!window.location.search.includes('code=')) {
-          // If no user and no incoming OAuth code in URL, redirect to register
-          subscription.unsubscribe();
-          window.location.href = '/register.html';
+        } else {
+          // Check if arriving from OAuth (supports both ?code= and #access_token=)
+          const hasAuthParams = window.location.search.includes('code=') || 
+                                window.location.hash.includes('access_token=') || 
+                                window.location.hash.includes('error=');
+          
+          if (!hasAuthParams) {
+            subscription.unsubscribe();
+            window.location.href = '/register.html';
+          }
+          // If auth params exist, do nothing and let onAuthStateChange finish processing!
         }
       });
 
