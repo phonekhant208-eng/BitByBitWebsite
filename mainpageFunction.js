@@ -18,37 +18,59 @@
     console.error("Initialization error:", err);
   }
 
-  // BULLETPROOF AUTHENTICATION GUARD
+  
+  // BULLETPROOF AUTHENTICATION GUARD WITH DEBUGGING
   async function checkAuth() {
-    if (!dbClient) return;
+    if (!dbClient) {
+      console.error("DEBUG: dbClient is not initialized!");
+      return;
+    }
 
-    // 1. Give Supabase a moment to parse incoming URL hash tokens (#access_token=...)
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    console.log("DEBUG: Current URL:", window.location.href);
+    console.log("DEBUG: URL Hash:", window.location.hash);
+    console.log("DEBUG: URL Search:", window.location.search);
+
+    // 1. Listen to all auth state changes
+    dbClient.auth.onAuthStateChange((event, session) => {
+      console.log("DEBUG: onAuthStateChange event:", event, "Session exists:", !!session);
+    });
+
+    // 2. Give Supabase a moment to parse incoming URL hash tokens (#access_token=...)
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
     const { data: { session }, error } = await dbClient.auth.getSession();
     
+    if (error) {
+      console.error("DEBUG: getSession error:", error.message);
+    }
+
     if (session) {
-      // User is successfully authenticated! Initialize dashboard.
+      console.log("DEBUG: Session found! User:", session.user.email);
       loadDashboard('math');
       setupUIHandlers();
       return;
     }
 
-    // 2. If tokens are in the URL hash, give it one more short retry for async storage
+    console.warn("DEBUG: No session found after delay.");
+
+    // 3. If tokens are in the URL hash, log them and give it one more retry
     if (window.location.hash.includes('access_token=')) {
+      console.log("DEBUG: Access tokens detected in URL hash. Retrying session grab...");
       setTimeout(async () => {
-        const { data: { session: retrySession } } = await dbClient.auth.getSession();
+        const { data: { session: retrySession }, error: retryError } = await dbClient.auth.getSession();
         if (retrySession) {
+          console.log("DEBUG: Retry successful! User:", retrySession.user.email);
           loadDashboard('math');
           setupUIHandlers();
         } else {
+          console.error("DEBUG: Retry failed. Error:", retryError?.message);
           window.location.href = 'register.html';
         }
-      }, 1000);
+      }, 1500);
       return;
     }
 
-    // 3. No session and no tokens -> unauthorized, redirect to register
+    console.warn("DEBUG: No session and no tokens. Redirecting to register.html");
     window.location.href = 'register.html';
   }
 
