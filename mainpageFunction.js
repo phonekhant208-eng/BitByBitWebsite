@@ -12,47 +12,39 @@
     console.error("Initialization error:", err);
   }
 
-// AUTHENTICATION GUARD
+  // AUTHENTICATION GUARD & OAUTH CODE EXCHANGE
   async function checkAuth() {
     if (!dbClient) return;
 
-    return new Promise((resolve) => {
-      const { data: { subscription } } = dbClient.auth.onAuthStateChange((event, session) => {
-        if (session?.user) {
-          subscription.unsubscribe();
-          resolve(session.user);
+    // 1. Check if returning from Google OAuth redirect with an authorization code
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    
+    if (code) {
+      try {
+        const { error } = await dbClient.auth.exchangeCodeForSession(code);
+        if (error) {
+          console.error("Code exchange failed:", error.message);
+          window.location.href = '/register.html';
+          return;
         }
-      });
+        // Clean the ?code= from the URL bar without reloading the page
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (err) {
+        console.error("OAuth error:", err);
+        window.location.href = '/register.html';
+        return;
+      }
+    }
 
-      dbClient.auth.getUser().then(({ data: { user } }) => {
-        if (user) {
-          subscription.unsubscribe();
-          resolve(user);
-        } else {
-          // Check if arriving from OAuth (supports both ?code= and #access_token=)
-          const hasAuthParams = window.location.search.includes('code=') || 
-                                window.location.hash.includes('access_token=') || 
-                                window.location.hash.includes('error=');
-          
-          if (!hasAuthParams) {
-            subscription.unsubscribe();
-            window.location.href = '/register.html';
-          }
-          // If auth params exist, do nothing and let onAuthStateChange finish processing!
-        }
-      });
-
-      // Safety fallback timeout (5 seconds) if network hangs
-      setTimeout(() => {
-        subscription.unsubscribe();
-        dbClient.auth.getUser().then(({ data: { user } }) => {
-          if (!user) window.location.href = '/register.html';
-        });
-      }, 5000);
-    });
+    // 2. Verify active session
+    const { data: { session }, error: sessionError } = await dbClient.auth.getSession();
+    if (sessionError || !session) {
+      window.location.href = '/register.html';
+    }
   }
 
-  // Run the check immediately
+  // Run the auth check immediately
   checkAuth();
 
   const statsCache = {}; // Caches stats per subject for the active session
