@@ -1,6 +1,6 @@
 (function() {
   const SUPABASE_URL = "https://api.mibyte.site";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5enN5bWVkZWttZWtnb3N5a2lrIiwicm9sZSI6InFub24iLCJpYXQiOjE3ODQzNTM3MTksImV4cCI6MjA5OTkyOTcxOX0.H7cgkvW2gCIX2DiNePoU8hImQI8k6Fo2NK148uC5pPU";
 
   let dbClient;
 
@@ -8,9 +8,9 @@
     if (window.supabase) {
       dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: true
+          flowType: 'implicit',
+          detectSessionInUrl: true,
+          persistSession: true
         }
       });
     }
@@ -18,14 +18,14 @@
     console.error("Initialization error:", err);
   }
 
-  // AUTHENTICATION GUARD (PKCE Flow Handler)
+  // AUTHENTICATION GUARD (Implicit Flow Hash Catcher)
   async function checkAuth() {
     if (!dbClient) return;
 
-    // Give Supabase time to detect and automatically exchange the ?code= parameter in the URL
+    // Give Supabase a moment to parse tokens from #access_token=... in the URL hash
     await new Promise(resolve => setTimeout(resolve, 1200));
 
-    const { data: { session }, error } = await dbClient.auth.getSession();
+    const { data: { session } } = await dbClient.auth.getSession();
     
     if (session) {
       loadDashboard('math');
@@ -33,7 +33,20 @@
       return;
     }
 
-    // If no session is found, redirect to register
+    // Fallback check for URL hash tokens
+    if (window.location.hash.includes('access_token=')) {
+      setTimeout(async () => {
+        const { data: { session: retrySession } } = await dbClient.auth.getSession();
+        if (retrySession) {
+          loadDashboard('math');
+          setupUIHandlers();
+          return;
+        }
+        window.location.href = '/register.html';
+      }, 1000);
+      return;
+    }
+
     window.location.href = '/register.html';
   }
 
