@@ -3,7 +3,7 @@
     let activeSeconds = 0;
     let timerInterval = null;
     const SYNC_INTERVAL = 120; // Sync to Supabase every 120 seconds
-    const MAX_BACKGROUND_SECONDS = 7200; // 2 hours hard stop (2 * 60 * 60)
+    const MAX_BACKGROUND_SECONDS = 300; // 2 hours hard stop (2 * 60 * 60)
 
     let lastActiveTimestamp = Date.now();
     let isTracking = true;
